@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import TripContextSection from '@/components/TripContextSection'
+import InviteLink from '@/components/InviteLink'
 
 export default async function TripHubPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params
@@ -44,10 +45,10 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
             <span className="text-sm text-gray-500">{participants?.length ?? 0} participants</span>
           </div>
 
-          {/* Invite code display */}
-          <p className="mt-2 text-sm text-gray-400">
-            Invite code: <span className="font-mono text-gray-600">{trip.invite_code}</span>
-          </p>
+          {/* Invite link */}
+          <div className="mt-2">
+            <InviteLink inviteCode={trip.invite_code} />
+          </div>
         </div>
 
         {/* Trip context with realtime updates */}
