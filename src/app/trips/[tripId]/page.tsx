@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import TripContextSection from '@/components/TripContextSection'
 
 export default async function TripHubPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params
@@ -49,11 +50,8 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
           </p>
         </div>
 
-        {/* Context placeholder - will be replaced by TripContextSection component */}
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <h2 className="font-semibold text-lg mb-2">Trip Details</h2>
-          <p className="text-sm text-gray-400">Context section coming soon...</p>
-        </div>
+        {/* Trip context with realtime updates */}
+        <TripContextSection tripId={tripId} />
 
         {/* Discover */}
         <div className="bg-white rounded-2xl shadow-sm p-6">
