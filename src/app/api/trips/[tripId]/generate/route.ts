@@ -14,6 +14,18 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // Verify participant
+  const { data: participant } = await supabase
+    .from('trip_participants')
+    .select('id')
+    .eq('trip_id', tripId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!participant) {
+    return NextResponse.json({ error: 'Not a trip participant' }, { status: 403 })
+  }
+
   // Get trip
   const { data: trip } = await supabase
     .from('trips')
