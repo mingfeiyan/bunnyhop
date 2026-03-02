@@ -8,11 +8,18 @@ export default function GeneratePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [count, setCount] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleGenerate() {
     setLoading(true)
+    setError(null)
     const res = await fetch(`/api/trips/${tripId}/generate`, { method: 'POST' })
     const data = await res.json()
+    if (!res.ok) {
+      setError(data.error ?? 'Failed to generate cards. Please try again.')
+      setLoading(false)
+      return
+    }
     setCount(data.count ?? 0)
     setLoading(false)
   }
@@ -26,6 +33,7 @@ export default function GeneratePage() {
             <p className="text-gray-500 mb-6 text-sm">
               AI will create personalized cards based on your destination and trip details.
             </p>
+            {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
             <button onClick={handleGenerate} disabled={loading}
               className="w-full bg-green-600 text-white font-medium rounded-lg px-4 py-3 hover:bg-green-700 disabled:opacity-50 transition">
               {loading ? 'Generating...' : 'Generate Cards'}

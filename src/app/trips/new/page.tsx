@@ -8,10 +8,12 @@ export default function NewTripPage() {
   const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
+    setError(null)
 
     const formData = new FormData(e.currentTarget)
     const title = formData.get('title') as string
@@ -29,6 +31,7 @@ export default function NewTripPage() {
       .single()
 
     if (error) {
+      setError('Failed to create trip. Please try again.')
       setLoading(false)
       return
     }
@@ -71,6 +74,7 @@ export default function NewTripPage() {
           </div>
         </div>
 
+        {error && <p className="text-sm text-red-600">{error}</p>}
         <button type="submit" disabled={loading}
           className="w-full bg-blue-600 text-white font-medium rounded-lg px-4 py-3 hover:bg-blue-700 disabled:opacity-50 transition">
           {loading ? 'Creating...' : 'Create Trip'}

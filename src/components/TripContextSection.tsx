@@ -16,6 +16,7 @@ export default function TripContextSection({ tripId }: { tripId: string }) {
   const [contexts, setContexts] = useState<TripContext[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     // Fetch existing context
@@ -46,6 +47,7 @@ export default function TripContextSection({ tripId }: { tripId: string }) {
     e.preventDefault()
     if (!input.trim()) return
     setLoading(true)
+    setError(null)
 
     const res = await fetch(`/api/trips/${tripId}/context`, {
       method: 'POST',
@@ -55,6 +57,8 @@ export default function TripContextSection({ tripId }: { tripId: string }) {
 
     if (res.ok) {
       setInput('')
+    } else {
+      setError('Failed to add context. Please try again.')
     }
     setLoading(false)
   }
@@ -93,6 +97,7 @@ export default function TripContextSection({ tripId }: { tripId: string }) {
           Add
         </button>
       </form>
+      {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
     </div>
   )
 }
