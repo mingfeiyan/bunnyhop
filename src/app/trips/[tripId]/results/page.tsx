@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import ResultsCard from '@/components/ResultsCard'
@@ -42,6 +42,7 @@ export default function ResultsPage() {
   const supabase = createClient()
   const [results, setResults] = useState<SwipeResult[]>([])
   const [filter, setFilter] = useState<FilterCategory>('all')
+  const cardIdsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     async function load() {
@@ -51,6 +52,7 @@ export default function ResultsPage() {
         .eq('trip_id', tripId)
 
       const cardIds = cards?.map(c => c.id) ?? []
+      cardIdsRef.current = new Set(cardIds)
 
       let swipes: Swipe[] = []
       if (cardIds.length > 0) {
@@ -72,8 +74,12 @@ export default function ResultsPage() {
         event: 'INSERT',
         schema: 'public',
         table: 'swipes',
-      }, () => {
-        load()
+      }, (payload) => {
+        const newSwipe = payload.new as { card_id: string }
+        // Only reload if this swipe is for a card in our trip
+        if (cardIdsRef.current.has(newSwipe.card_id)) {
+          load()
+        }
       })
       .subscribe()
 
