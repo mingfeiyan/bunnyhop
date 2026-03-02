@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const publicRoutes = ['/login', '/auth/callback', '/invite']
+  const publicRoutes = ['/login', '/auth/callback', '/invite', '/api']
   const isPublicRoute = publicRoutes.some(route => request.nextUrl.pathname.startsWith(route))
 
   if (!user && !isPublicRoute && request.nextUrl.pathname !== '/') {
