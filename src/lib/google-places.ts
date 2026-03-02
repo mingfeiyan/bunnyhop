@@ -12,8 +12,3 @@ export async function searchPlacePhoto(query: string): Promise<string | null> {
 
   return `/api/photos?ref=${place.photos[0].photo_reference}`
 }
-
-export function getPhotoUrl(photoReference: string): string {
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY
-  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoReference}&key=${apiKey}`
-}
