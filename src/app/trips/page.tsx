@@ -13,7 +13,7 @@ export default async function TripsPage() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  const trips = participations?.map(p => ({ ...p.trips as Record<string, unknown>, role: p.role })) ?? []
+  const trips = participations?.map(p => ({ ...(p.trips as unknown as Record<string, unknown>), role: p.role })) ?? []
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
