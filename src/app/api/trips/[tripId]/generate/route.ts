@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { generateCards } from '@/lib/card-generator'
+import { searchPlacePhoto } from '@/lib/google-places'
 import { NextResponse } from 'next/server'
 
 export async function POST(
@@ -79,6 +80,22 @@ export async function POST(
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  // Fetch photos for inserted cards
+  if (inserted && inserted.length > 0) {
+    const photoUpdates = inserted.map(async (card) => {
+      const query = card.metadata?.photo_search_query
+      if (!query) return
+      const photoUrl = await searchPlacePhoto(query as string)
+      if (photoUrl) {
+        await supabase
+          .from('cards')
+          .update({ image_url: photoUrl })
+          .eq('id', card.id)
+      }
+    })
+    await Promise.allSettled(photoUpdates)
   }
 
   return NextResponse.json({ cards: inserted, count: inserted?.length })
