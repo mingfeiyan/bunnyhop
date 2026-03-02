@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import SwipeDeck from '@/components/SwipeDeck'
@@ -15,30 +15,30 @@ export default function SwipePage() {
   const [loading, setLoading] = useState(true)
   const [showAddCard, setShowAddCard] = useState(false)
 
-  useEffect(() => {
-    async function loadCards() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+  const loadCards = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-      const { data: allCards } = await supabase
-        .from('cards')
-        .select('*')
-        .eq('trip_id', tripId)
-        .order('created_at')
+    const { data: allCards } = await supabase
+      .from('cards')
+      .select('*')
+      .eq('trip_id', tripId)
+      .order('created_at')
 
-      const { data: swipes } = await supabase
-        .from('swipes')
-        .select('card_id')
-        .eq('user_id', user.id)
+    const { data: swipes } = await supabase
+      .from('swipes')
+      .select('card_id')
+      .eq('user_id', user.id)
 
-      const swipedCardIds = new Set(swipes?.map(s => s.card_id) ?? [])
-      const unswiped = (allCards ?? []).filter(c => !swipedCardIds.has(c.id))
-      setCards(unswiped)
-      setLoading(false)
-    }
-
-    loadCards()
+    const swipedCardIds = new Set(swipes?.map(s => s.card_id) ?? [])
+    const unswiped = (allCards ?? []).filter(c => !swipedCardIds.has(c.id))
+    setCards(unswiped)
+    setLoading(false)
   }, [tripId, supabase])
+
+  useEffect(() => {
+    loadCards()
+  }, [loadCards])
 
   async function handleSwipe(cardId: string, preference: 'want' | 'pass' | 'indifferent') {
     const { data: { user } } = await supabase.auth.getUser()
@@ -74,7 +74,7 @@ export default function SwipePage() {
         <AddCardModal
           tripId={tripId}
           onClose={() => setShowAddCard(false)}
-          onAdded={() => {}}
+          onAdded={() => { loadCards() }}
         />
       )}
     </div>
