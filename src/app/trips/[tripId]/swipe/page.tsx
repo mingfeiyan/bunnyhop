@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import SwipeDeck from '@/components/SwipeDeck'
+import AddCardModal from '@/components/AddCardModal'
 import type { Card } from '@/types'
 
 export default function SwipePage() {
@@ -12,6 +13,7 @@ export default function SwipePage() {
   const supabase = createClient()
   const [cards, setCards] = useState<Card[]>([])
   const [loading, setLoading] = useState(true)
+  const [showAddCard, setShowAddCard] = useState(false)
 
   useEffect(() => {
     async function loadCards() {
@@ -63,6 +65,18 @@ export default function SwipePage() {
 
         <SwipeDeck cards={cards} onSwipe={handleSwipe} />
       </div>
+
+      <button onClick={() => setShowAddCard(true)}
+        className="fixed bottom-6 right-6 bg-blue-600 text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center text-2xl hover:bg-blue-700 transition">
+        +
+      </button>
+      {showAddCard && (
+        <AddCardModal
+          tripId={tripId}
+          onClose={() => setShowAddCard(false)}
+          onAdded={() => {}}
+        />
+      )}
     </div>
   )
 }
