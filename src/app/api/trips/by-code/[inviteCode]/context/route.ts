@@ -1,18 +1,39 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServerClient } from '@supabase/ssr'
 import { parseContext } from '@/lib/claude'
 import { NextResponse } from 'next/server'
+
+// Create a Supabase client with service role key (bypasses RLS)
+// Used for agent API where there's no browser session
+function createServiceClient() {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceRoleKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set')
+  }
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceRoleKey,
+    {
+      cookies: {
+        getAll: () => [],
+        setAll: () => {},
+      },
+    }
+  )
+}
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ inviteCode: string }> }
 ) {
   const { inviteCode } = await params
-  const supabase = await createClient()
 
-  // Find trip by invite code
+  const supabase = createServiceClient()
+
+  // Find trip by invite code — the invite code IS the auth
   const { data: trip } = await supabase
     .from('trips')
-    .select('id')
+    .select('id, created_by')
     .eq('invite_code', inviteCode)
     .single()
 
@@ -20,30 +41,16 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid invite code' }, { status: 404 })
   }
 
-  // Auth: user must be logged in and a participant
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const { data: participant } = await supabase
-    .from('trip_participants')
-    .select('id')
-    .eq('trip_id', trip.id)
-    .eq('user_id', user.id)
-    .single()
-
-  if (!participant) {
-    return NextResponse.json({ error: 'Not a trip participant' }, { status: 403 })
-  }
-
-  const { text } = await request.json()
+  const body = await request.json()
+  const { text } = body
   if (!text || typeof text !== 'string') {
-    return NextResponse.json({ error: 'Text is required' }, { status: 400 })
+    return NextResponse.json({ error: 'text field is required' }, { status: 400 })
   }
 
+  // Parse with AI
   const parsed = await parseContext(text)
 
+  // Insert using the trip creator as the added_by user
   const { data, error } = await supabase
     .from('trip_context')
     .insert({
@@ -51,7 +58,7 @@ export async function POST(
       type: parsed.type,
       raw_text: text,
       details: parsed.details,
-      added_by: user.id,
+      added_by: trip.created_by,
       source: 'agent',
     })
     .select()

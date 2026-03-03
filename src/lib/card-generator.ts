@@ -40,7 +40,7 @@ export async function generateCards(
 
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 4000,
+    max_tokens: 8000,
     messages: [{
       role: 'user',
       content: `You are a travel recommendation expert. Generate 20-25 recommendations for a trip.
@@ -73,14 +73,30 @@ Make taglines engaging and personality-filled. Use the trip context to personali
   })
 
   const content = message.content[0]
-  if (content.type !== 'text') return []
+  if (content.type !== 'text') {
+    console.error('Claude returned non-text content:', content.type)
+    return []
+  }
+
+  console.log('Claude response length:', content.text.length)
+  console.log('Claude response preview:', content.text.substring(0, 200))
+  console.log('Claude stop reason:', message.stop_reason)
 
   try {
     return JSON.parse(content.text)
-  } catch {
+  } catch (e1) {
+    console.log('Direct JSON parse failed, trying regex extraction...')
     // Try to extract JSON from the response if wrapped in markdown
     const match = content.text.match(/\[[\s\S]*\]/)
-    if (match) return JSON.parse(match[0])
+    if (match) {
+      try {
+        return JSON.parse(match[0])
+      } catch (e2) {
+        console.error('Regex JSON parse also failed:', e2)
+        console.error('Extracted text:', match[0].substring(0, 500))
+      }
+    }
+    console.error('Could not parse Claude response as JSON')
     return []
   }
 }

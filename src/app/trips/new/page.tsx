@@ -31,7 +31,8 @@ export default function NewTripPage() {
       .single()
 
     if (error) {
-      setError('Failed to create trip. Please try again.')
+      console.error('Trip creation error:', error)
+      setError(`Failed to create trip: ${error.message}`)
       setLoading(false)
       return
     }

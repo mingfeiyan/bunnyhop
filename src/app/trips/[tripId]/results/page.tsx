@@ -51,7 +51,7 @@ export default function ResultsPage() {
         .select('*')
         .eq('trip_id', tripId)
 
-      const cardIds = cards?.map(c => c.id) ?? []
+      const cardIds = cards?.map((c: any) => c.id) ?? []
       cardIdsRef.current = new Set(cardIds)
 
       let swipes: Swipe[] = []

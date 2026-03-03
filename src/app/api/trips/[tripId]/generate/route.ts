@@ -53,13 +53,25 @@ export async function POST(
   const existingTitles = existingCards?.map(c => c.title) ?? []
 
   // Generate cards
-  const generated = await generateCards(
-    trip.destination,
-    trip.date_start,
-    trip.date_end,
-    contexts ?? [],
-    existingTitles
-  )
+  let generated
+  try {
+    generated = await generateCards(
+      trip.destination,
+      trip.date_start,
+      trip.date_end,
+      contexts ?? [],
+      existingTitles
+    )
+  } catch (err) {
+    console.error('Card generation failed:', err)
+    return NextResponse.json({ error: `Card generation failed: ${err}`, count: 0 }, { status: 500 })
+  }
+
+  console.log(`Generated ${generated.length} cards for trip ${tripId}`)
+
+  if (!generated || generated.length === 0) {
+    return NextResponse.json({ cards: [], count: 0 })
+  }
 
   // Insert cards
   const cardsToInsert = generated.map(card => ({
@@ -79,8 +91,10 @@ export async function POST(
     .select()
 
   if (error) {
+    console.error('Card insert error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+  console.log(`Inserted ${inserted?.length} cards`)
 
   // Fetch photos for inserted cards
   if (inserted && inserted.length > 0) {
