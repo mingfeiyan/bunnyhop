@@ -25,7 +25,7 @@ export default function TripContextSection({ tripId }: { tripId: string }) {
       .select('*')
       .eq('trip_id', tripId)
       .order('created_at', { ascending: true })
-      .then(({ data }) => { if (data) setContexts(data) })
+      .then(({ data }: { data: any }) => { if (data) setContexts(data) })
 
     // Subscribe to new context
     const channel = supabase
@@ -35,7 +35,7 @@ export default function TripContextSection({ tripId }: { tripId: string }) {
         schema: 'public',
         table: 'trip_context',
         filter: `trip_id=eq.${tripId}`,
-      }, (payload) => {
+      }, (payload: any) => {
         setContexts(prev => [...prev, payload.new as TripContext])
       })
       .subscribe()

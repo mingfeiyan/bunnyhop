@@ -74,7 +74,7 @@ export default function ResultsPage() {
         event: 'INSERT',
         schema: 'public',
         table: 'swipes',
-      }, (payload) => {
+      }, (payload: any) => {
         const newSwipe = payload.new as { card_id: string }
         // Only reload if this swipe is for a card in our trip
         if (cardIdsRef.current.has(newSwipe.card_id)) {

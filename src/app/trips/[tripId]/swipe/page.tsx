@@ -30,8 +30,8 @@ export default function SwipePage() {
       .select('card_id')
       .eq('user_id', user.id)
 
-    const swipedCardIds = new Set(swipes?.map(s => s.card_id) ?? [])
-    const unswiped = (allCards ?? []).filter(c => !swipedCardIds.has(c.id))
+    const swipedCardIds = new Set(swipes?.map((s: any) => s.card_id) ?? [])
+    const unswiped = (allCards ?? []).filter((c: any) => !swipedCardIds.has(c.id))
     setCards(unswiped)
     setLoading(false)
   }, [tripId, supabase])
