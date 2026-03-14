@@ -2,6 +2,14 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const publicRoutes = ['/login', '/auth/callback', '/invite', '/api']
+  const isPublicRoute = publicRoutes.some(route => request.nextUrl.pathname.startsWith(route))
+
+  // Skip auth check for public routes and homepage to avoid unnecessary Supabase calls
+  if (isPublicRoute || request.nextUrl.pathname === '/') {
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -27,10 +35,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const publicRoutes = ['/login', '/auth/callback', '/invite', '/api']
-  const isPublicRoute = publicRoutes.some(route => request.nextUrl.pathname.startsWith(route))
-
-  if (!user && !isPublicRoute && request.nextUrl.pathname !== '/') {
+  if (!user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
