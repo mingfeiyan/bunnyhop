@@ -6,6 +6,7 @@ export type Trip = {
   date_end: string
   created_by: string
   invite_code: string
+  timezone: string | null
   created_at: string
 }
 
@@ -14,6 +15,7 @@ export type TripParticipant = {
   trip_id: string
   user_id: string
   role: 'organizer' | 'member'
+  family_group_id: string | null
   created_at: string
 }
 
@@ -68,4 +70,25 @@ export type SwipeResult = Card & {
   swipes: Swipe[]
   score: number
   consensus: 'everyone_loves' | 'mixed' | 'hard_pass'
+}
+
+export type FamilyGroup = {
+  id: string
+  trip_id: string
+  name: string
+  color: string
+  created_at: string
+}
+
+export type TimelineEvent = {
+  id: string
+  date: string
+  type: 'arrival' | 'departure' | 'check_in' | 'check_out'
+  icon: string
+  title: string
+  description: string
+  familyName: string | null
+  familyColor: string | null
+  rawText: string
+  dateUnclear: boolean
 }
