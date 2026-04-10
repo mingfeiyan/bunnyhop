@@ -23,7 +23,10 @@ export function expandContextToEvents(
   familyName: string | null,
   familyColor: string | null
 ): TimelineEvent[] {
-  const details = ctx.details as Record<string, unknown>
+  // Defensive: details may be null or non-object on malformed rows
+  const details: Record<string, unknown> = (ctx.details && typeof ctx.details === 'object')
+    ? (ctx.details as Record<string, unknown>)
+    : {}
 
   if (ctx.type === 'flight') {
     const date = validIsoDate(details.date)

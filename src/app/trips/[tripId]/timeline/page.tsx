@@ -7,32 +7,41 @@ import type { TripContext, TripParticipant, FamilyGroup, TimelineEvent } from '@
 
 export default async function TimelinePage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params
+
+  try {
   const supabase = await createClient()
 
-  const { data: trip } = await supabase
+  const { data: trip, error: tripError } = await supabase
     .from('trips')
     .select('*')
     .eq('id', tripId)
     .single()
 
+  if (tripError) throw new Error(`trips query failed: ${tripError.message}`)
   if (!trip) notFound()
 
-  const { data: contexts } = await supabase
+  const { data: contexts, error: contextsError } = await supabase
     .from('trip_context')
     .select('*')
     .eq('trip_id', tripId)
     .in('type', ['flight', 'hotel'])
 
+  if (contextsError) throw new Error(`trip_context query failed: ${contextsError.message}`)
+
   // Fetch participants and family_groups separately to avoid PostgREST join issues
-  const { data: participants } = await supabase
+  const { data: participants, error: participantsError } = await supabase
     .from('trip_participants')
     .select('*')
     .eq('trip_id', tripId)
 
-  const { data: familyGroups } = await supabase
+  if (participantsError) throw new Error(`trip_participants query failed: ${participantsError.message}`)
+
+  const { data: familyGroups, error: familyGroupsError } = await supabase
     .from('family_groups')
     .select('*')
     .eq('trip_id', tripId)
+
+  if (familyGroupsError) throw new Error(`family_groups query failed: ${familyGroupsError.message}`)
 
   // Build family group lookup by id
   const groupById = new Map<string, FamilyGroup>()
@@ -192,4 +201,27 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
       </div>
     </div>
   )
+  } catch (err) {
+    console.error('[TimelinePage] Error rendering timeline:', err)
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    const stack = err instanceof Error ? err.stack : undefined
+    return (
+      <div className="min-h-screen bg-gray-50 p-4">
+        <div className="max-w-md mx-auto">
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
+            <h1 className="text-lg font-bold text-red-800 mb-2">Timeline error</h1>
+            <p className="text-sm text-red-700 mb-3">{message}</p>
+            {stack && (
+              <pre className="text-[10px] text-red-600 bg-red-100 p-2 rounded overflow-x-auto mb-4 whitespace-pre-wrap">
+                {stack}
+              </pre>
+            )}
+            <Link href={`/trips/${tripId}`} className="text-red-600 underline text-sm">
+              ← Back to trip
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
 }
