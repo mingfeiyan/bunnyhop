@@ -7,6 +7,17 @@ const EVENT_TYPE_ORDER: Record<string, number> = {
   departure: 3,
 }
 
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+// Returns the input string if it is a valid ISO YYYY-MM-DD date, otherwise ''
+function validIsoDate(value: unknown): string {
+  if (typeof value !== 'string' || !ISO_DATE_RE.test(value)) return ''
+  const [y, m, d] = value.split('-').map(Number)
+  // Sanity check: year 1900-2100, month 1-12, day 1-31
+  if (y < 1900 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) return ''
+  return value
+}
+
 export function expandContextToEvents(
   ctx: TripContext,
   familyName: string | null,
@@ -15,7 +26,7 @@ export function expandContextToEvents(
   const details = ctx.details as Record<string, unknown>
 
   if (ctx.type === 'flight') {
-    const date = (details.date as string) || ''
+    const date = validIsoDate(details.date)
     const airline = (details.airline as string) || ''
     const flightNumber = (details.flight_number as string) || ''
     const origin = (details.origin as string) || ''
@@ -43,8 +54,8 @@ export function expandContextToEvents(
   }
 
   if (ctx.type === 'hotel') {
-    const checkIn = (details.check_in as string) || ''
-    const checkOut = (details.check_out as string) || ''
+    const checkIn = validIsoDate(details.check_in)
+    const checkOut = validIsoDate(details.check_out)
     const hotelName = (details.name as string) || ''
     const events: TimelineEvent[] = []
 
@@ -128,6 +139,9 @@ export function computeOverlap(familyDateRanges: FamilyDateRange[]): Overlap | n
 }
 
 export function formatDateHeader(isoDate: string, timezone: string | null): string {
+  // Bail out gracefully on invalid input
+  if (!validIsoDate(isoDate)) return isoDate || 'Unknown date'
+
   // Parse date components directly to avoid timezone-shifting issues.
   // We use the target timezone (or UTC) to determine the day-of-week for the
   // given calendar date, then format using those same components.
