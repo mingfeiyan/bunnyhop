@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { computeOverlap, formatDateHeader } from '@/lib/timeline'
 import TimelineEventCard from '@/components/TimelineEventCard'
+import TimelineRealtimeWrapper from '@/components/TimelineRealtimeWrapper'
 import type { TripParticipant, FamilyGroup, TimelineEventRow } from '@/types'
 
 export default async function TimelinePage({ params }: { params: Promise<{ tripId: string }> }) {
@@ -88,7 +89,24 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
         }
       }
     }
-    positions.sort((a, b) => a.date.localeCompare(b.date))
+
+    // Sort by date, then phase (check_out morning → flight → check_in afternoon),
+    // then start_time as a tiebreaker for same-phase same-date events.
+    const PHASE_ORDER: Record<RenderPosition['phase'], number> = {
+      check_out: 0,
+      flight: 1,
+      check_in: 2,
+    }
+    positions.sort((a, b) => {
+      const dateCmp = a.date.localeCompare(b.date)
+      if (dateCmp !== 0) return dateCmp
+      const phaseCmp = PHASE_ORDER[a.phase] - PHASE_ORDER[b.phase]
+      if (phaseCmp !== 0) return phaseCmp
+      // Same date, same phase → fall back to start_time (HH:MM strings sort lexicographically)
+      const aTime = a.event.start_time ?? ''
+      const bTime = b.event.start_time ?? ''
+      return aTime.localeCompare(bTime)
+    })
 
     // Compute overlap based on each family's earliest start_date and latest end_date (or start_date)
     const familyDateMap = new Map<string, { earliest: string; latest: string }>()
@@ -134,6 +152,7 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
     const hasEvents = allEvents.length > 0
 
     return (
+      <TimelineRealtimeWrapper tripId={tripId}>
       <div className="min-h-screen bg-gray-50 p-4">
         <div className="max-w-md mx-auto space-y-6">
           <div className="bg-white rounded-2xl shadow-sm p-6">
@@ -194,6 +213,7 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
           )}
         </div>
       </div>
+      </TimelineRealtimeWrapper>
     )
   } catch (err) {
     console.error('[TimelinePage] Error rendering timeline:', err)

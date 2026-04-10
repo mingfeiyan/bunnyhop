@@ -21,6 +21,8 @@ function createServiceClient() {
 }
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+// HH:MM 24-hour format, 00:00 through 23:59
+const TIME_24H_RE = /^([01]\d|2[0-3]):[0-5]\d$/
 
 type IncomingEvent = {
   type?: string
@@ -49,6 +51,12 @@ function validateEvent(e: unknown): { ok: true; value: IncomingEvent } | { ok: f
   }
   if (ev.end_date && (typeof ev.end_date !== 'string' || !ISO_DATE_RE.test(ev.end_date))) {
     return { ok: false, error: 'end_date must be YYYY-MM-DD format if provided' }
+  }
+  if (ev.start_time && (typeof ev.start_time !== 'string' || !TIME_24H_RE.test(ev.start_time))) {
+    return { ok: false, error: 'start_time must be HH:MM 24-hour format if provided (e.g. "13:25")' }
+  }
+  if (ev.end_time && (typeof ev.end_time !== 'string' || !TIME_24H_RE.test(ev.end_time))) {
+    return { ok: false, error: 'end_time must be HH:MM 24-hour format if provided (e.g. "21:30")' }
   }
   return { ok: true, value: ev }
 }
