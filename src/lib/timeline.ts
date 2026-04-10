@@ -128,14 +128,58 @@ export function computeOverlap(familyDateRanges: FamilyDateRange[]): Overlap | n
 }
 
 export function formatDateHeader(isoDate: string, timezone: string | null): string {
-  const date = new Date(isoDate + 'T12:00:00')
+  // Parse date components directly to avoid timezone-shifting issues.
+  // We use the target timezone (or UTC) to determine the day-of-week for the
+  // given calendar date, then format using those same components.
+  const [year, month, day] = isoDate.split('-').map(Number)
+  const tz = timezone || 'UTC'
+
+  // Build a UTC instant that lands on this calendar date at noon in the target
+  // timezone.  We approximate the offset by formatting a reference instant and
+  // reading back the date it shows in that timezone, then adjusting.
+  // Simpler: use Intl.DateTimeFormat to get the weekday for this date directly
+  // by constructing an instant that is unambiguously this date in the target tz.
+  // Strategy: start at noon UTC, then check what date the target tz shows.
+  // If it differs, shift by ±12 h until the target tz shows the right date.
+  let utcMs = Date.UTC(year, month - 1, day, 12, 0, 0)
+
+  const checkDate = (ms: number): { y: number; m: number; d: number } => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric', month: '2-digit', day: '2-digit', timeZone: tz,
+    }).formatToParts(new Date(ms))
+    return {
+      y: Number(parts.find(p => p.type === 'year')?.value),
+      m: Number(parts.find(p => p.type === 'month')?.value),
+      d: Number(parts.find(p => p.type === 'day')?.value),
+    }
+  }
+
+  // Adjust up to ±14 hours (maximum real timezone offset)
+  let checked = checkDate(utcMs)
+  if (checked.d !== day || checked.m !== month || checked.y !== year) {
+    // Try shifting by -1 day (target tz is ahead of UTC)
+    const adjusted = utcMs - 24 * 60 * 60 * 1000
+    checked = checkDate(adjusted)
+    if (checked.d === day && checked.m === month && checked.y === year) {
+      utcMs = adjusted
+    }
+    // else try shifting by +1 day (target tz is behind UTC)
+    else {
+      const adjusted2 = utcMs + 24 * 60 * 60 * 1000
+      checked = checkDate(adjusted2)
+      if (checked.d === day && checked.m === month && checked.y === year) {
+        utcMs = adjusted2
+      }
+    }
+  }
+
   const options: Intl.DateTimeFormatOptions = {
     month: 'long',
     day: 'numeric',
     weekday: 'short',
-    timeZone: timezone || undefined,
+    timeZone: tz,
   }
-  const formatted = date.toLocaleDateString('en-US', options)
+  const formatted = new Date(utcMs).toLocaleDateString('en-US', options)
   // Intl gives "Sat, July 5" — reformat to "July 5 (Sat)"
   const parts = formatted.split(', ')
   if (parts.length === 2) {

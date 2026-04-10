@@ -138,12 +138,17 @@ describe('computeOverlap', () => {
 describe('formatDateHeader', () => {
   it('formats date as "Month Day (Weekday)"', () => {
     const result = formatDateHeader('2026-07-05', null)
-    expect(result).toMatch(/July 5/)
-    expect(result).toMatch(/\(Sun\)/)
+    expect(result).toBe('July 5 (Sun)')
   })
 
-  it('accepts a timezone parameter', () => {
+  it('formats with a specific timezone', () => {
     const result = formatDateHeader('2026-07-05', 'Pacific/Tahiti')
-    expect(result).toMatch(/July/)
+    expect(result).toBe('July 5 (Sun)')
+  })
+
+  it('handles timezone where date could shift without UTC anchoring', () => {
+    // Pacific/Auckland is UTC+12, if we weren't careful this could shift the date
+    const result = formatDateHeader('2026-07-05', 'Pacific/Auckland')
+    expect(result).toBe('July 5 (Sun)')
   })
 })
