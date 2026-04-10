@@ -80,9 +80,10 @@ export default function FamilyGroupManager({ tripId, isOrganizer, participants }
 
   async function assignParticipant(participantId: string, familyGroupId: string | null) {
     const { error: updateError } = await supabase
-      .from('trip_participants')
-      .update({ family_group_id: familyGroupId })
-      .eq('id', participantId)
+      .rpc('assign_family_group', {
+        p_participant_id: participantId,
+        p_family_group_id: familyGroupId,
+      })
 
     if (updateError) {
       setError(updateError.message)
@@ -94,12 +95,7 @@ export default function FamilyGroupManager({ tripId, isOrganizer, participants }
   }
 
   async function deleteGroup(groupId: string) {
-    // Unassign all members first
-    const members = localParticipants.filter(p => p.family_group_id === groupId)
-    for (const m of members) {
-      await assignParticipant(m.id, null)
-    }
-
+    // FK ON DELETE SET NULL handles unassigning members automatically
     const { error: deleteError } = await supabase
       .from('family_groups')
       .delete()
@@ -107,7 +103,12 @@ export default function FamilyGroupManager({ tripId, isOrganizer, participants }
 
     if (deleteError) {
       setError(deleteError.message)
+      return
     }
+    // Update local state to reflect unassignment
+    setLocalParticipants(prev =>
+      prev.map(p => p.family_group_id === groupId ? { ...p, family_group_id: null } : p)
+    )
   }
 
   const grouped = groups.map(g => ({

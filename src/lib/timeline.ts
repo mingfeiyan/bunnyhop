@@ -132,7 +132,16 @@ export function formatDateHeader(isoDate: string, timezone: string | null): stri
   // We use the target timezone (or UTC) to determine the day-of-week for the
   // given calendar date, then format using those same components.
   const [year, month, day] = isoDate.split('-').map(Number)
-  const tz = timezone || 'UTC'
+  let tz = 'UTC'
+  if (timezone) {
+    try {
+      // Validate the timezone string by attempting to use it
+      Intl.DateTimeFormat(undefined, { timeZone: timezone })
+      tz = timezone
+    } catch {
+      // Invalid timezone — fall back to UTC
+    }
+  }
 
   // Build a UTC instant that lands on this calendar date at noon in the target
   // timezone.  We approximate the offset by formatting a reference instant and
