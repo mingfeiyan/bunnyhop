@@ -17,6 +17,7 @@ export default function TripContextSection({ tripId }: { tripId: string }) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
     // Fetch existing context
@@ -65,39 +66,52 @@ export default function TripContextSection({ tripId }: { tripId: string }) {
 
   return (
     <div className="bg-white rounded-2xl shadow-sm p-6">
-      <h2 className="font-semibold text-lg mb-3">Trip Details</h2>
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between text-left"
+      >
+        <h2 className="font-semibold text-lg">Add Booking Details</h2>
+        <span className="text-gray-400 text-sm">
+          {expanded ? '▲' : '▼'} {contexts.length > 0 && `${contexts.length}`}
+        </span>
+      </button>
 
-      {/* Context list */}
-      <div className="space-y-2 mb-4">
-        {contexts.map(ctx => (
-          <div key={ctx.id} className="flex items-start gap-2 text-sm">
-            <span>{TYPE_ICONS[ctx.type] ?? '📋'}</span>
-            <div>
-              <p className="text-gray-800">{ctx.raw_text}</p>
-              <p className="text-xs text-gray-400 capitalize">{ctx.source}</p>
-            </div>
+      {expanded && (
+        <div className="mt-4">
+          {/* Context list */}
+          <div className="space-y-2 mb-4">
+            {contexts.map(ctx => (
+              <div key={ctx.id} className="flex items-start gap-2 text-sm">
+                <span>{TYPE_ICONS[ctx.type] ?? '📋'}</span>
+                <div>
+                  <p className="text-gray-800">{ctx.raw_text}</p>
+                  <p className="text-xs text-gray-400 capitalize">{ctx.source}</p>
+                </div>
+              </div>
+            ))}
+            {contexts.length === 0 && (
+              <p className="text-sm text-gray-400">No details added yet. Add flights, hotels, or any constraints.</p>
+            )}
           </div>
-        ))}
-        {contexts.length === 0 && (
-          <p className="text-sm text-gray-400">No details added yet. Add flights, hotels, or any constraints.</p>
-        )}
-      </div>
 
-      {/* Input */}
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="e.g. Flying Air Tahiti, arrive July 5 at 2pm"
-          className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-        />
-        <button type="submit" disabled={loading}
-          className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition">
-          Add
-        </button>
-      </form>
-      {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+          {/* Input */}
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="e.g. Flying Air Tahiti, arrive July 5 at 2pm"
+              className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            />
+            <button type="submit" disabled={loading}
+              className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition">
+              Add
+            </button>
+          </form>
+          {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+        </div>
+      )}
     </div>
   )
 }

@@ -53,6 +53,12 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
           </div>
         </div>
 
+        {/* Timeline (prominent action) */}
+        <Link href={`/trips/${tripId}/timeline`}
+          className="block w-full text-center bg-blue-600 text-white font-semibold rounded-2xl px-4 py-4 hover:bg-blue-700 transition shadow-sm">
+          📅 View Trip Timeline
+        </Link>
+
         {/* Family Groups */}
         <FamilyGroupManager
           tripId={tripId}
@@ -60,7 +66,7 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
           participants={participants ?? []}
         />
 
-        {/* Trip context with realtime updates */}
+        {/* Trip context (collapsible) with realtime updates */}
         <TripContextSection tripId={tripId} />
 
         {/* Discover */}
@@ -80,10 +86,6 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
               Generate Recommendations
             </Link>
           )}
-          <Link href={`/trips/${tripId}/timeline`}
-            className="block w-full text-center border border-blue-600 text-blue-600 font-medium rounded-lg px-4 py-3 hover:bg-blue-50 transition mt-3">
-            View Timeline
-          </Link>
         </div>
 
         {/* Results */}
