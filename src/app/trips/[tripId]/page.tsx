@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import TripContextSection from '@/components/TripContextSection'
 import InviteLink from '@/components/InviteLink'
+import FamilyGroupManager from '@/components/FamilyGroupManager'
 
 export default async function TripHubPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params
@@ -20,6 +21,9 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
     .from('trip_participants')
     .select('*')
     .eq('trip_id', tripId)
+
+  const { data: { user } } = await supabase.auth.getUser()
+  const isOrganizer = participants?.some(p => p.user_id === user?.id && p.role === 'organizer') ?? false
 
   const { data: cards } = await supabase
     .from('cards')
@@ -51,6 +55,13 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
           </div>
         </div>
 
+        {/* Family Groups */}
+        <FamilyGroupManager
+          tripId={tripId}
+          isOrganizer={isOrganizer}
+          participants={(participants ?? []).map(p => ({ ...p, email: undefined }))}
+        />
+
         {/* Trip context with realtime updates */}
         <TripContextSection tripId={tripId} />
 
@@ -71,6 +82,10 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
               Generate Recommendations
             </Link>
           )}
+          <Link href={`/trips/${tripId}/timeline`}
+            className="block w-full text-center border border-blue-600 text-blue-600 font-medium rounded-lg px-4 py-3 hover:bg-blue-50 transition mt-3">
+            View Timeline
+          </Link>
         </div>
 
         {/* Results */}
