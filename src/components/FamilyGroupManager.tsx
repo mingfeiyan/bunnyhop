@@ -58,7 +58,8 @@ export default function FamilyGroupManager({ tripId, isOrganizer, participants }
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [tripId, supabase])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripId])
 
   async function createGroup(e: React.FormEvent) {
     e.preventDefault()
