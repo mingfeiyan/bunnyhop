@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { expandContextToEvents, sortTimelineEvents, computeOverlap, formatDateHeader } from '@/lib/timeline'
-import { getColorClasses } from '@/components/FamilyGroupManager'
+import { getColorClasses } from '@/lib/colors'
 import type { TripContext, TripParticipant, FamilyGroup, TimelineEvent } from '@/types'
 
 export default async function TimelinePage({ params }: { params: Promise<{ tripId: string }> }) {
