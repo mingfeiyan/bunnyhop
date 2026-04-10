@@ -18,12 +18,10 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
   if (!trip) notFound()
 
   const { data: participants } = await supabase
-    .from('trip_participants')
-    .select('*')
-    .eq('trip_id', tripId)
+    .rpc('get_trip_participants_with_email', { p_trip_id: tripId })
 
   const { data: { user } } = await supabase.auth.getUser()
-  const isOrganizer = participants?.some(p => p.user_id === user?.id && p.role === 'organizer') ?? false
+  const isOrganizer = participants?.some((p: { user_id: string; role: string }) => p.user_id === user?.id && p.role === 'organizer') ?? false
 
   const { data: cards } = await supabase
     .from('cards')
@@ -59,7 +57,7 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
         <FamilyGroupManager
           tripId={tripId}
           isOrganizer={isOrganizer}
-          participants={(participants ?? []).map(p => ({ ...p, email: undefined }))}
+          participants={participants ?? []}
         />
 
         {/* Trip context with realtime updates */}
