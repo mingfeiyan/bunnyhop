@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { expandContextToEvents, sortTimelineEvents, computeOverlap } from '@/lib/timeline'
+import { expandContextToEvents, sortTimelineEvents, computeOverlap, formatDateHeader } from '@/lib/timeline'
 import type { TripContext } from '@/types'
 
 const baseFlight: TripContext = {
@@ -132,5 +132,18 @@ describe('computeOverlap', () => {
   it('returns null for empty input', () => {
     const overlap = computeOverlap([])
     expect(overlap).toBeNull()
+  })
+})
+
+describe('formatDateHeader', () => {
+  it('formats date as "Month Day (Weekday)"', () => {
+    const result = formatDateHeader('2026-07-05', null)
+    expect(result).toMatch(/July 5/)
+    expect(result).toMatch(/\(Sun\)/)
+  })
+
+  it('accepts a timezone parameter', () => {
+    const result = formatDateHeader('2026-07-05', 'Pacific/Tahiti')
+    expect(result).toMatch(/July/)
   })
 })
