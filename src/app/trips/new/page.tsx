@@ -20,13 +20,14 @@ export default function NewTripPage() {
     const destination = formData.get('destination') as string
     const dateStart = formData.get('date_start') as string
     const dateEnd = formData.get('date_end') as string
+    const timezone = (formData.get('timezone') as string) || null
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
     const { data: trip, error } = await supabase
       .from('trips')
-      .insert({ title, destination, date_start: dateStart, date_end: dateEnd, created_by: user.id })
+      .insert({ title, destination, date_start: dateStart, date_end: dateEnd, timezone, created_by: user.id })
       .select()
       .single()
 
@@ -73,6 +74,13 @@ export default function NewTripPage() {
             <input id="date_end" name="date_end" type="date" required
               className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="timezone" className="block text-sm font-medium text-gray-700 mb-1">Destination Timezone</label>
+          <input id="timezone" name="timezone" type="text" placeholder="e.g. Pacific/Tahiti"
+            className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+          <p className="text-xs text-gray-400 mt-1">IANA timezone for displaying local times</p>
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
