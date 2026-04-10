@@ -1,0 +1,102 @@
+import { createClient } from '@/lib/supabase/server'
+import { NextResponse } from 'next/server'
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+type IncomingEvent = {
+  type?: string
+  title?: string
+  start_date?: string
+  end_date?: string | null
+  start_time?: string | null
+  end_time?: string | null
+  origin?: string | null
+  destination?: string | null
+  reference?: string | null
+  details?: Record<string, unknown>
+}
+
+function validateEvent(e: unknown): { ok: true; value: IncomingEvent } | { ok: false; error: string } {
+  if (!e || typeof e !== 'object') return { ok: false, error: 'event must be an object' }
+  const ev = e as IncomingEvent
+  if (ev.type !== 'flight' && ev.type !== 'hotel') {
+    return { ok: false, error: 'type must be "flight" or "hotel"' }
+  }
+  if (!ev.title || typeof ev.title !== 'string') {
+    return { ok: false, error: 'title is required' }
+  }
+  if (!ev.start_date || typeof ev.start_date !== 'string' || !ISO_DATE_RE.test(ev.start_date)) {
+    return { ok: false, error: 'start_date is required in YYYY-MM-DD format' }
+  }
+  if (ev.end_date && (typeof ev.end_date !== 'string' || !ISO_DATE_RE.test(ev.end_date))) {
+    return { ok: false, error: 'end_date must be YYYY-MM-DD format if provided' }
+  }
+  return { ok: true, value: ev }
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ tripId: string }> }
+) {
+  const { tripId } = await params
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Verify user is a participant
+  const { data: participant } = await supabase
+    .from('trip_participants')
+    .select('id')
+    .eq('trip_id', tripId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!participant) {
+    return NextResponse.json({ error: 'Not a trip participant' }, { status: 403 })
+  }
+
+  const body = await request.json()
+  const incoming = Array.isArray(body) ? body : [body]
+  if (incoming.length === 0) {
+    return NextResponse.json({ error: 'no events provided' }, { status: 400 })
+  }
+
+  const validEvents: IncomingEvent[] = []
+  for (let i = 0; i < incoming.length; i++) {
+    const result = validateEvent(incoming[i])
+    if (!result.ok) {
+      return NextResponse.json({ error: `event[${i}]: ${result.error}` }, { status: 400 })
+    }
+    validEvents.push(result.value)
+  }
+
+  const rows = validEvents.map(ev => ({
+    trip_id: tripId,
+    type: ev.type!,
+    title: ev.title!,
+    start_date: ev.start_date!,
+    end_date: ev.end_date ?? null,
+    start_time: ev.start_time ?? null,
+    end_time: ev.end_time ?? null,
+    origin: ev.origin ?? null,
+    destination: ev.destination ?? null,
+    reference: ev.reference ?? null,
+    details: ev.details ?? {},
+    added_by: user.id,
+    source: 'manual',
+  }))
+
+  const { data, error } = await supabase
+    .from('timeline_events')
+    .insert(rows)
+    .select()
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json(data)
+}

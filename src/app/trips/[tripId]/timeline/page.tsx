@@ -1,201 +1,200 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { expandContextToEvents, sortTimelineEvents, computeOverlap, formatDateHeader } from '@/lib/timeline'
-import { getColorClasses } from '@/lib/colors'
-import type { TripContext, TripParticipant, FamilyGroup, TimelineEvent } from '@/types'
+import { computeOverlap, formatDateHeader } from '@/lib/timeline'
+import TimelineEventCard from '@/components/TimelineEventCard'
+import type { TripParticipant, FamilyGroup, TimelineEventRow } from '@/types'
 
 export default async function TimelinePage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params
 
   try {
-  const supabase = await createClient()
+    const supabase = await createClient()
 
-  const { data: trip, error: tripError } = await supabase
-    .from('trips')
-    .select('*')
-    .eq('id', tripId)
-    .single()
+    const { data: { user } } = await supabase.auth.getUser()
+    const currentUserId = user?.id ?? null
 
-  if (tripError) throw new Error(`trips query failed: ${tripError.message}`)
-  if (!trip) notFound()
+    const { data: trip, error: tripError } = await supabase
+      .from('trips')
+      .select('*')
+      .eq('id', tripId)
+      .single()
 
-  const { data: contexts, error: contextsError } = await supabase
-    .from('trip_context')
-    .select('*')
-    .eq('trip_id', tripId)
-    .in('type', ['flight', 'hotel'])
+    if (tripError) throw new Error(`trips query failed: ${tripError.message}`)
+    if (!trip) notFound()
 
-  if (contextsError) throw new Error(`trip_context query failed: ${contextsError.message}`)
+    const { data: events, error: eventsError } = await supabase
+      .from('timeline_events')
+      .select('*')
+      .eq('trip_id', tripId)
+      .order('start_date', { ascending: true })
+      .order('start_time', { ascending: true, nullsFirst: true })
 
-  // Fetch participants and family_groups separately to avoid PostgREST join issues
-  const { data: participants, error: participantsError } = await supabase
-    .from('trip_participants')
-    .select('*')
-    .eq('trip_id', tripId)
+    if (eventsError) throw new Error(`timeline_events query failed: ${eventsError.message}`)
 
-  if (participantsError) throw new Error(`trip_participants query failed: ${participantsError.message}`)
+    const { data: participants, error: participantsError } = await supabase
+      .from('trip_participants')
+      .select('*')
+      .eq('trip_id', tripId)
 
-  const { data: familyGroups, error: familyGroupsError } = await supabase
-    .from('family_groups')
-    .select('*')
-    .eq('trip_id', tripId)
+    if (participantsError) throw new Error(`trip_participants query failed: ${participantsError.message}`)
 
-  if (familyGroupsError) throw new Error(`family_groups query failed: ${familyGroupsError.message}`)
+    const { data: familyGroups, error: familyGroupsError } = await supabase
+      .from('family_groups')
+      .select('*')
+      .eq('trip_id', tripId)
 
-  // Build family group lookup by id
-  const groupById = new Map<string, FamilyGroup>()
-  for (const g of (familyGroups ?? []) as FamilyGroup[]) {
-    groupById.set(g.id, g)
-  }
+    if (familyGroupsError) throw new Error(`family_groups query failed: ${familyGroupsError.message}`)
 
-  // Build a lookup: user_id -> { familyName, familyColor }
-  const userFamilyMap = new Map<string, { familyName: string | null; familyColor: string | null }>()
-  for (const p of (participants ?? []) as TripParticipant[]) {
-    const group = p.family_group_id ? groupById.get(p.family_group_id) : null
-    userFamilyMap.set(p.user_id, {
-      familyName: group?.name ?? null,
-      familyColor: group?.color ?? null,
-    })
-  }
+    // Determine if current user is the trip organizer
+    const isOrganizer = (participants ?? []).some(
+      (p: TripParticipant) => p.user_id === currentUserId && p.role === 'organizer'
+    )
 
-  // Expand all contexts into timeline events
-  const allEvents: TimelineEvent[] = (contexts ?? []).flatMap((ctx: TripContext) => {
-    const family = userFamilyMap.get(ctx.added_by)
-    return expandContextToEvents(ctx, family?.familyName ?? null, family?.familyColor ?? null)
-  })
-
-  const sortedEvents = sortTimelineEvents(allEvents)
-
-  // Compute overlap
-  const familyDateMap = new Map<string, { earliest: string; latest: string }>()
-  for (const ev of sortedEvents) {
-    if (!ev.familyName || ev.dateUnclear) continue
-    const existing = familyDateMap.get(ev.familyName)
-    if (!existing) {
-      familyDateMap.set(ev.familyName, { earliest: ev.date, latest: ev.date })
-    } else {
-      if (ev.date < existing.earliest) existing.earliest = ev.date
-      if (ev.date > existing.latest) existing.latest = ev.date
+    // Build family group lookup by id
+    const groupById = new Map<string, FamilyGroup>()
+    for (const g of (familyGroups ?? []) as FamilyGroup[]) {
+      groupById.set(g.id, g)
     }
-  }
-  const familyDateRanges = Array.from(familyDateMap.entries()).map(([familyName, range]) => ({
-    familyName,
-    ...range,
-  }))
-  const overlap = computeOverlap(familyDateRanges)
 
-  // Group events by date for rendering
-  const dateGroups: { date: string; label: string; events: TimelineEvent[] }[] = []
-  const unclearEvents: TimelineEvent[] = []
-
-  for (const ev of sortedEvents) {
-    if (ev.dateUnclear) {
-      unclearEvents.push(ev)
-      continue
-    }
-    const existing = dateGroups.find(g => g.date === ev.date)
-    if (existing) {
-      existing.events.push(ev)
-    } else {
-      dateGroups.push({
-        date: ev.date,
-        label: formatDateHeader(ev.date, trip.timezone),
-        events: [ev],
+    // Build a lookup: user_id -> { familyName, familyColor }
+    const userFamilyMap = new Map<string, { familyName: string | null; familyColor: string | null }>()
+    for (const p of (participants ?? []) as TripParticipant[]) {
+      const group = p.family_group_id ? groupById.get(p.family_group_id) : null
+      userFamilyMap.set(p.user_id, {
+        familyName: group?.name ?? null,
+        familyColor: group?.color ?? null,
       })
     }
-  }
 
-  // Determine where to insert overlap banner
-  const overlapStartIndex = overlap
-    ? dateGroups.findIndex(g => g.date >= overlap.start)
-    : -1
+    const allEvents = (events ?? []) as TimelineEventRow[]
 
-  const hasEvents = sortedEvents.length > 0
+    // Expand each event into render positions:
+    //   flight  -> 1 position at start_date (phase: 'flight')
+    //   hotel   -> 2 positions: check_in at start_date, check_out at end_date
+    type RenderPosition = {
+      event: TimelineEventRow
+      date: string
+      phase: 'flight' | 'check_in' | 'check_out'
+    }
+    const positions: RenderPosition[] = []
+    for (const ev of allEvents) {
+      if (ev.type === 'flight') {
+        positions.push({ event: ev, date: ev.start_date, phase: 'flight' })
+      } else {
+        positions.push({ event: ev, date: ev.start_date, phase: 'check_in' })
+        if (ev.end_date) {
+          positions.push({ event: ev, date: ev.end_date, phase: 'check_out' })
+        }
+      }
+    }
+    positions.sort((a, b) => a.date.localeCompare(b.date))
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-md mx-auto space-y-6">
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <Link href={`/trips/${tripId}`} className="text-sm text-blue-600 mb-2 block">&larr; Back to trip</Link>
-          <h1 className="text-2xl font-bold">Timeline</h1>
-          <p className="text-gray-500">{trip.destination}</p>
-        </div>
+    // Compute overlap based on each family's earliest start_date and latest end_date (or start_date)
+    const familyDateMap = new Map<string, { earliest: string; latest: string }>()
+    for (const ev of allEvents) {
+      const family = userFamilyMap.get(ev.added_by)
+      if (!family?.familyName) continue
+      const earliest = ev.start_date
+      const latest = ev.end_date ?? ev.start_date
+      const existing = familyDateMap.get(family.familyName)
+      if (!existing) {
+        familyDateMap.set(family.familyName, { earliest, latest })
+      } else {
+        if (earliest < existing.earliest) existing.earliest = earliest
+        if (latest > existing.latest) existing.latest = latest
+      }
+    }
+    const familyDateRanges = Array.from(familyDateMap.entries()).map(([familyName, range]) => ({
+      familyName,
+      ...range,
+    }))
+    const overlap = computeOverlap(familyDateRanges)
 
-        {!hasEvents ? (
-          <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
-            <p className="text-gray-400">No bookings yet. Add flight or hotel details in Trip Details to see your timeline.</p>
-            <Link href={`/trips/${tripId}`} className="text-blue-600 hover:underline text-sm mt-2 block">
-              Go to Trip Details
-            </Link>
+    // Group render positions by date
+    const dateGroups: { date: string; label: string; positions: RenderPosition[] }[] = []
+    for (const pos of positions) {
+      const existing = dateGroups.find(g => g.date === pos.date)
+      if (existing) {
+        existing.positions.push(pos)
+      } else {
+        dateGroups.push({
+          date: pos.date,
+          label: formatDateHeader(pos.date, trip.timezone),
+          positions: [pos],
+        })
+      }
+    }
+
+    // Determine where to insert the overlap banner
+    const overlapStartIndex = overlap
+      ? dateGroups.findIndex(g => g.date >= overlap.start)
+      : -1
+
+    const hasEvents = allEvents.length > 0
+
+    return (
+      <div className="min-h-screen bg-gray-50 p-4">
+        <div className="max-w-md mx-auto space-y-6">
+          <div className="bg-white rounded-2xl shadow-sm p-6">
+            <Link href={`/trips/${tripId}`} className="text-sm text-blue-600 mb-2 block">&larr; Back to trip</Link>
+            <h1 className="text-2xl font-bold">Timeline</h1>
+            <p className="text-gray-500">{trip.destination}</p>
           </div>
-        ) : (
-          <div className="relative pl-8 ml-3">
-            {/* Timeline line */}
-            <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-gray-200" />
 
-            {dateGroups.map((group, groupIndex) => (
-              <div key={group.date}>
-                {/* Overlap banner — insert before the overlap start date */}
-                {overlap && groupIndex === overlapStartIndex && (
-                  <div className="mb-6 -ml-8 bg-gradient-to-r from-emerald-50 to-blue-50 rounded-xl p-3 border border-dashed border-emerald-300">
-                    <p className="text-sm font-semibold text-emerald-800">
-                      🎉 Everyone&apos;s together! {formatDateHeader(overlap.start, trip.timezone)} – {formatDateHeader(overlap.end, trip.timezone)}
-                    </p>
-                  </div>
-                )}
+          {!hasEvents ? (
+            <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
+              <p className="text-gray-400">No bookings yet. Submit booking details via your agent or the form on the trip page.</p>
+              <Link href={`/trips/${tripId}`} className="text-blue-600 hover:underline text-sm mt-2 block">
+                Back to trip
+              </Link>
+            </div>
+          ) : (
+            <div className="relative pl-8 ml-3">
+              {/* Timeline line */}
+              <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-gray-200" />
 
-                {/* Date header */}
-                <div className="relative mb-4">
-                  <div className="absolute -left-10 top-1 w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow" />
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{group.label}</p>
-
-                  {/* Events for this date */}
-                  <div className="mt-2 space-y-2">
-                    {group.events.map(ev => {
-                      const colors = ev.familyColor ? getColorClasses(ev.familyColor) : null
-                      return (
-                        <div
-                          key={ev.id}
-                          className={`bg-white rounded-xl p-3 shadow-sm ${colors ? `border-l-4 ${colors.border}` : ''}`}
-                        >
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-base">{ev.icon}</span>
-                            <span className="font-semibold text-sm">{ev.title}</span>
-                          </div>
-                          <p className="text-xs text-gray-500">{ev.description}</p>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {/* Date-unclear events at the bottom */}
-            {unclearEvents.length > 0 && (
-              <div className="relative mb-4">
-                <div className="absolute -left-10 top-1 w-4 h-4 rounded-full bg-gray-300 border-2 border-white shadow" />
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Date unclear</p>
-                <div className="mt-2 space-y-2">
-                  {unclearEvents.map(ev => (
-                    <div key={ev.id} className="bg-white rounded-xl p-3 shadow-sm border-l-4 border-gray-300">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-base">{ev.icon}</span>
-                        <span className="font-semibold text-sm">{ev.title}</span>
-                      </div>
-                      <p className="text-xs text-gray-500">{ev.rawText}</p>
-                      <p className="text-xs text-amber-600 mt-1">Date could not be determined</p>
+              {dateGroups.map((group, groupIndex) => (
+                <div key={group.date}>
+                  {/* Overlap banner — insert before the overlap start date */}
+                  {overlap && groupIndex === overlapStartIndex && (
+                    <div className="mb-6 -ml-8 bg-gradient-to-r from-emerald-50 to-blue-50 rounded-xl p-3 border border-dashed border-emerald-300">
+                      <p className="text-sm font-semibold text-emerald-800">
+                        🎉 Everyone&apos;s together! {formatDateHeader(overlap.start, trip.timezone)} – {formatDateHeader(overlap.end, trip.timezone)}
+                      </p>
                     </div>
-                  ))}
+                  )}
+
+                  {/* Date header */}
+                  <div className="relative mb-4">
+                    <div className="absolute -left-10 top-1 w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow" />
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{group.label}</p>
+
+                    {/* Events for this date */}
+                    <div className="mt-2 space-y-2">
+                      {group.positions.map(pos => {
+                        const family = userFamilyMap.get(pos.event.added_by)
+                        const canDelete = isOrganizer || (currentUserId !== null && pos.event.added_by === currentUserId)
+                        return (
+                          <TimelineEventCard
+                            key={`${pos.event.id}-${pos.phase}`}
+                            event={pos.event}
+                            phase={pos.phase}
+                            familyName={family?.familyName ?? null}
+                            familyColor={family?.familyColor ?? null}
+                            canDelete={canDelete}
+                          />
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  )
+    )
   } catch (err) {
     console.error('[TimelinePage] Error rendering timeline:', err)
     const message = err instanceof Error ? err.message : 'Unknown error'

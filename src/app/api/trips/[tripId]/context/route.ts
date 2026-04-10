@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { parseContext } from '@/lib/claude'
+import { parsedEntryToTimelineEvent } from '@/lib/timeline-events'
 import { NextResponse } from 'next/server'
 
 export async function POST(
@@ -34,24 +35,58 @@ export async function POST(
   // Parse with AI — may return multiple entries
   const parsedEntries = await parseContext(text)
 
-  // Store each parsed entry as a separate row
-  const rows = parsedEntries.map(entry => ({
-    trip_id: tripId,
-    type: entry.type,
-    raw_text: entry.raw_text || text,
-    details: entry.details,
-    added_by: user.id,
-    source: 'manual',
-  }))
+  // Split entries: flight/hotel → timeline_events, others → trip_context.
+  // If a flight/hotel can't be converted (missing required fields), fall back
+  // to trip_context so the entry is not silently lost.
+  const timelineRows: Array<Record<string, unknown>> = []
+  const contextRows: Array<Record<string, unknown>> = []
 
-  const { data, error } = await supabase
-    .from('trip_context')
-    .insert(rows)
-    .select()
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  for (const entry of parsedEntries) {
+    if (entry.type === 'flight' || entry.type === 'hotel') {
+      const ev = parsedEntryToTimelineEvent(entry)
+      if (ev) {
+        timelineRows.push({
+          ...ev,
+          trip_id: tripId,
+          added_by: user.id,
+          source: 'manual',
+        })
+        continue
+      }
+    }
+    contextRows.push({
+      trip_id: tripId,
+      type: entry.type,
+      raw_text: entry.raw_text || text,
+      details: entry.details,
+      added_by: user.id,
+      source: 'manual',
+    })
   }
 
-  return NextResponse.json(data)
+  const inserted: unknown[] = []
+
+  if (timelineRows.length > 0) {
+    const { data, error } = await supabase
+      .from('timeline_events')
+      .insert(timelineRows)
+      .select()
+    if (error) {
+      return NextResponse.json({ error: `timeline_events insert failed: ${error.message}` }, { status: 500 })
+    }
+    if (data) inserted.push(...data)
+  }
+
+  if (contextRows.length > 0) {
+    const { data, error } = await supabase
+      .from('trip_context')
+      .insert(contextRows)
+      .select()
+    if (error) {
+      return NextResponse.json({ error: `trip_context insert failed: ${error.message}` }, { status: 500 })
+    }
+    if (data) inserted.push(...data)
+  }
+
+  return NextResponse.json(inserted)
 }

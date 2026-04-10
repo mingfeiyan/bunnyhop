@@ -1,0 +1,117 @@
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse } from 'next/server'
+
+// Service-role client for invite-code-based agent access (bypasses RLS)
+function createServiceClient() {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceRoleKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set')
+  }
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceRoleKey,
+    {
+      cookies: {
+        getAll: () => [],
+        setAll: () => {},
+      },
+    }
+  )
+}
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+type IncomingEvent = {
+  type?: string
+  title?: string
+  start_date?: string
+  end_date?: string | null
+  start_time?: string | null
+  end_time?: string | null
+  origin?: string | null
+  destination?: string | null
+  reference?: string | null
+  details?: Record<string, unknown>
+}
+
+function validateEvent(e: unknown): { ok: true; value: IncomingEvent } | { ok: false; error: string } {
+  if (!e || typeof e !== 'object') return { ok: false, error: 'event must be an object' }
+  const ev = e as IncomingEvent
+  if (ev.type !== 'flight' && ev.type !== 'hotel') {
+    return { ok: false, error: 'type must be "flight" or "hotel"' }
+  }
+  if (!ev.title || typeof ev.title !== 'string') {
+    return { ok: false, error: 'title is required' }
+  }
+  if (!ev.start_date || typeof ev.start_date !== 'string' || !ISO_DATE_RE.test(ev.start_date)) {
+    return { ok: false, error: 'start_date is required in YYYY-MM-DD format' }
+  }
+  if (ev.end_date && (typeof ev.end_date !== 'string' || !ISO_DATE_RE.test(ev.end_date))) {
+    return { ok: false, error: 'end_date must be YYYY-MM-DD format if provided' }
+  }
+  return { ok: true, value: ev }
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ inviteCode: string }> }
+) {
+  const { inviteCode } = await params
+  const supabase = createServiceClient()
+
+  // Find trip by invite code — the invite code IS the auth
+  const { data: trip, error: tripError } = await supabase
+    .from('trips')
+    .select('id, created_by')
+    .eq('invite_code', inviteCode)
+    .single()
+
+  if (tripError || !trip) {
+    return NextResponse.json({ error: 'Invalid invite code' }, { status: 404 })
+  }
+
+  const body = await request.json()
+  const incoming = Array.isArray(body) ? body : [body]
+  if (incoming.length === 0) {
+    return NextResponse.json({ error: 'no events provided' }, { status: 400 })
+  }
+
+  // Validate each event
+  const validEvents: IncomingEvent[] = []
+  for (let i = 0; i < incoming.length; i++) {
+    const result = validateEvent(incoming[i])
+    if (!result.ok) {
+      return NextResponse.json({ error: `event[${i}]: ${result.error}` }, { status: 400 })
+    }
+    validEvents.push(result.value)
+  }
+
+  // Insert
+  const rows = validEvents.map(ev => ({
+    trip_id: trip.id,
+    type: ev.type!,
+    title: ev.title!,
+    start_date: ev.start_date!,
+    end_date: ev.end_date ?? null,
+    start_time: ev.start_time ?? null,
+    end_time: ev.end_time ?? null,
+    origin: ev.origin ?? null,
+    destination: ev.destination ?? null,
+    reference: ev.reference ?? null,
+    details: ev.details ?? {},
+    added_by: trip.created_by,
+    source: 'agent',
+  }))
+
+  const { data, error } = await supabase
+    .from('timeline_events')
+    .insert(rows)
+    .select()
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json(data)
+}
