@@ -47,22 +47,23 @@ export async function POST(
     return NextResponse.json({ error: 'text field is required' }, { status: 400 })
   }
 
-  // Parse with AI
-  const parsed = await parseContext(text)
+  // Parse with AI — may return multiple entries
+  const parsedEntries = await parseContext(text)
 
-  // Insert using the trip creator as the added_by user
+  // Insert each parsed entry as a separate row
+  const rows = parsedEntries.map(entry => ({
+    trip_id: trip.id,
+    type: entry.type,
+    raw_text: entry.raw_text || text,
+    details: entry.details,
+    added_by: trip.created_by,
+    source: 'agent',
+  }))
+
   const { data, error } = await supabase
     .from('trip_context')
-    .insert({
-      trip_id: trip.id,
-      type: parsed.type,
-      raw_text: text,
-      details: parsed.details,
-      added_by: trip.created_by,
-      source: 'agent',
-    })
+    .insert(rows)
     .select()
-    .single()
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
