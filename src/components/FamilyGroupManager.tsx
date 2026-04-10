@@ -19,6 +19,7 @@ export default function FamilyGroupManager({ tripId, isOrganizer, participants }
   const [newName, setNewName] = useState('')
   const [newColor, setNewColor] = useState('indigo')
   const [error, setError] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
     supabase
@@ -107,8 +108,19 @@ export default function FamilyGroupManager({ tripId, isOrganizer, participants }
 
   return (
     <div className="bg-white rounded-2xl shadow-sm p-6">
-      <h2 className="font-semibold text-lg mb-3">Family Groups</h2>
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between text-left"
+      >
+        <h2 className="font-semibold text-lg">Family Groups</h2>
+        <span className="text-gray-400 text-sm">
+          {expanded ? '▲' : '▼'} {groups.length > 0 && `${groups.length}`}
+        </span>
+      </button>
 
+      {expanded && (
+      <div className="mt-4">
       {/* Existing groups */}
       <div className="space-y-3 mb-4">
         {grouped.map(g => {
@@ -230,6 +242,8 @@ export default function FamilyGroupManager({ tripId, isOrganizer, participants }
       )}
 
       {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+      </div>
+      )}
     </div>
   )
 }

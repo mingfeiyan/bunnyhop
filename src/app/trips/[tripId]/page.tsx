@@ -59,20 +59,6 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
           📅 View Trip Timeline
         </Link>
 
-        {/* Family Groups */}
-        <FamilyGroupManager
-          tripId={tripId}
-          isOrganizer={isOrganizer}
-          participants={participants ?? []}
-        />
-
-        {/* Trip context (collapsible) with realtime updates */}
-        <TripContextSection
-          tripId={tripId}
-          currentUserId={user?.id ?? null}
-          isOrganizer={isOrganizer}
-        />
-
         {/* Discover */}
         <div className="bg-white rounded-2xl shadow-sm p-6">
           <h2 className="font-semibold text-lg mb-2">Discover</h2>
@@ -100,6 +86,20 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
             View results &rarr;
           </Link>
         </div>
+
+        {/* Trip context (collapsible) with realtime updates */}
+        <TripContextSection
+          tripId={tripId}
+          currentUserId={user?.id ?? null}
+          isOrganizer={isOrganizer}
+        />
+
+        {/* Family Groups (collapsible, secondary) */}
+        <FamilyGroupManager
+          tripId={tripId}
+          isOrganizer={isOrganizer}
+          participants={participants ?? []}
+        />
       </div>
     </div>
   )
