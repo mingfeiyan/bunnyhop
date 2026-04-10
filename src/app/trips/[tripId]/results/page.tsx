@@ -37,21 +37,43 @@ function computeResults(cards: Card[], swipes: Swipe[]): SwipeResult[] {
 
 type FilterCategory = 'all' | 'restaurant' | 'activity' | 'sightseeing'
 
+// Derive a short display name from an email (portion before @)
+function displayNameFromEmail(email: string | null | undefined): string {
+  if (!email) return 'Unknown'
+  const at = email.indexOf('@')
+  return at > 0 ? email.slice(0, at) : email
+}
+
 export default function ResultsPage() {
   const { tripId } = useParams<{ tripId: string }>()
   const supabase = createClient()
   const [results, setResults] = useState<SwipeResult[]>([])
   const [filter, setFilter] = useState<FilterCategory>('all')
+  const [userMap, setUserMap] = useState<Record<string, string>>({})
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const cardIdsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     async function load() {
+      // Fetch current user
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUserId(user?.id ?? null)
+
+      // Fetch participant display info via existing RPC (from migration 006)
+      const { data: participants } = await supabase
+        .rpc('get_trip_participants_with_email', { p_trip_id: tripId })
+      const map: Record<string, string> = {}
+      for (const p of (participants ?? []) as Array<{ user_id: string; email: string | null }>) {
+        map[p.user_id] = displayNameFromEmail(p.email)
+      }
+      setUserMap(map)
+
       const { data: cards } = await supabase
         .from('cards')
         .select('*')
         .eq('trip_id', tripId)
 
-      const cardIds = cards?.map((c: any) => c.id) ?? []
+      const cardIds = (cards ?? []).map((c: Card) => c.id)
       cardIdsRef.current = new Set(cardIds)
 
       let swipes: Swipe[] = []
@@ -63,7 +85,7 @@ export default function ResultsPage() {
         swipes = data ?? []
       }
 
-      setResults(computeResults(cards ?? [], swipes))
+      setResults(computeResults((cards ?? []) as Card[], swipes))
     }
 
     load()
@@ -71,20 +93,21 @@ export default function ResultsPage() {
     const channel = supabase
       .channel(`results-${tripId}`)
       .on('postgres_changes', {
-        event: 'INSERT',
+        event: '*',
         schema: 'public',
         table: 'swipes',
-      }, (payload: any) => {
-        const newSwipe = payload.new as { card_id: string }
-        // Only reload if this swipe is for a card in our trip
-        if (cardIdsRef.current.has(newSwipe.card_id)) {
+      }, (payload: { new: { card_id?: string } | null; old: { card_id?: string } | null }) => {
+        // Reload if this change touches any card in our trip (handles INSERT, UPDATE, DELETE)
+        const cardId = payload.new?.card_id ?? payload.old?.card_id
+        if (cardId && cardIdsRef.current.has(cardId)) {
           load()
         }
       })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [tripId, supabase])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripId])
 
   const filtered = filter === 'all' ? results : results.filter(r => r.category === filter)
 
@@ -114,7 +137,7 @@ export default function ResultsPage() {
           <section>
             <h2 className="font-semibold text-green-700 mb-2">Everyone Loves ({everyoneLoves.length})</h2>
             <div className="space-y-2">
-              {everyoneLoves.map(r => <ResultsCard key={r.id} result={r} />)}
+              {everyoneLoves.map(r => <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />)}
             </div>
           </section>
         )}
@@ -123,7 +146,7 @@ export default function ResultsPage() {
           <section>
             <h2 className="font-semibold text-yellow-700 mb-2">Mixed Feelings ({mixed.length})</h2>
             <div className="space-y-2">
-              {mixed.map(r => <ResultsCard key={r.id} result={r} />)}
+              {mixed.map(r => <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />)}
             </div>
           </section>
         )}
@@ -132,7 +155,7 @@ export default function ResultsPage() {
           <section>
             <h2 className="font-semibold text-red-700 mb-2">Hard Pass ({hardPass.length})</h2>
             <div className="space-y-2">
-              {hardPass.map(r => <ResultsCard key={r.id} result={r} />)}
+              {hardPass.map(r => <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />)}
             </div>
           </section>
         )}
