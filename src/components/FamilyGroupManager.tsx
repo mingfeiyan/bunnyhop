@@ -38,7 +38,7 @@ export default function FamilyGroupManager({ tripId, isOrganizer, participants }
       .select('*')
       .eq('trip_id', tripId)
       .order('created_at', { ascending: true })
-      .then(({ data }: { data: any }) => { if (data) setGroups(data) })
+      .then(({ data }: { data: FamilyGroup[] | null }) => { if (data) setGroups(data) })
 
     const channel = supabase
       .channel(`family-groups-${tripId}`)
@@ -53,7 +53,7 @@ export default function FamilyGroupManager({ tripId, isOrganizer, participants }
           .select('*')
           .eq('trip_id', tripId)
           .order('created_at', { ascending: true })
-          .then(({ data }: { data: any }) => { if (data) setGroups(data) })
+          .then(({ data }: { data: FamilyGroup[] | null }) => { if (data) setGroups(data) })
       })
       .subscribe()
 
