@@ -58,17 +58,21 @@ create policy "Organizer can delete family groups"
     )
   );
 
--- Allow organizer to update family_group_id on trip_participants
-create policy "Organizer can assign family groups"
-  on trip_participants for update
-  using (
-    exists (
-      select 1 from trip_participants tp
-      where tp.trip_id = trip_participants.trip_id
-        and tp.user_id = auth.uid()
-        and tp.role = 'organizer'
-    )
-  );
+-- Security-definer function to update only family_group_id (narrow scope)
+create or replace function assign_family_group(p_participant_id uuid, p_family_group_id uuid)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  update public.trip_participants
+  set family_group_id = p_family_group_id
+  where id = p_participant_id
+    and trip_id in (
+      select trip_id from public.trip_participants
+      where user_id = auth.uid() and role = 'organizer'
+    );
+$$;
 
 -- Enable Realtime on family_groups
 alter publication supabase_realtime add table family_groups;
