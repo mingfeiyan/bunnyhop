@@ -23,17 +23,30 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
     .eq('trip_id', tripId)
     .in('type', ['flight', 'hotel'])
 
+  // Fetch participants and family_groups separately to avoid PostgREST join issues
   const { data: participants } = await supabase
     .from('trip_participants')
-    .select('*, family_groups(*)')
+    .select('*')
     .eq('trip_id', tripId)
+
+  const { data: familyGroups } = await supabase
+    .from('family_groups')
+    .select('*')
+    .eq('trip_id', tripId)
+
+  // Build family group lookup by id
+  const groupById = new Map<string, FamilyGroup>()
+  for (const g of (familyGroups ?? []) as FamilyGroup[]) {
+    groupById.set(g.id, g)
+  }
 
   // Build a lookup: user_id -> { familyName, familyColor }
   const userFamilyMap = new Map<string, { familyName: string | null; familyColor: string | null }>()
-  for (const p of (participants ?? []) as (TripParticipant & { family_groups: FamilyGroup | null })[]) {
+  for (const p of (participants ?? []) as TripParticipant[]) {
+    const group = p.family_group_id ? groupById.get(p.family_group_id) : null
     userFamilyMap.set(p.user_id, {
-      familyName: p.family_groups?.name ?? null,
-      familyColor: p.family_groups?.color ?? null,
+      familyName: group?.name ?? null,
+      familyColor: group?.color ?? null,
     })
   }
 
