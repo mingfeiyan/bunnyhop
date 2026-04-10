@@ -93,6 +93,23 @@ export default function FamilyGroupManager({ tripId, isOrganizer, participants }
     )
   }
 
+  async function deleteGroup(groupId: string) {
+    // Unassign all members first
+    const members = localParticipants.filter(p => p.family_group_id === groupId)
+    for (const m of members) {
+      await assignParticipant(m.id, null)
+    }
+
+    const { error: deleteError } = await supabase
+      .from('family_groups')
+      .delete()
+      .eq('id', groupId)
+
+    if (deleteError) {
+      setError(deleteError.message)
+    }
+  }
+
   const grouped = groups.map(g => ({
     ...g,
     members: localParticipants.filter(p => p.family_group_id === g.id),
@@ -109,15 +126,44 @@ export default function FamilyGroupManager({ tripId, isOrganizer, participants }
           const colors = getColorClasses(g.color)
           return (
             <div key={g.id} className={`border-l-4 ${colors.border} rounded-lg p-3 bg-gray-50`}>
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`w-3 h-3 rounded-full ${colors.dot}`} />
-                <span className="font-medium text-sm">{g.name}</span>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <span className={`w-3 h-3 rounded-full ${colors.dot}`} />
+                  <span className="font-medium text-sm">{g.name}</span>
+                </div>
+                {isOrganizer && (
+                  <button
+                    onClick={() => deleteGroup(g.id)}
+                    className="text-xs text-red-400 hover:text-red-600"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
-              <div className="text-xs text-gray-500">
-                {g.members.length === 0
-                  ? 'No members assigned'
-                  : g.members.map(m => m.email ?? m.user_id.slice(0, 8)).join(', ')}
-              </div>
+              {g.members.length === 0 ? (
+                <p className="text-xs text-gray-500">No members assigned</p>
+              ) : (
+                <div className="space-y-1 mt-1">
+                  {g.members.map(m => (
+                    <div key={m.id} className="flex items-center justify-between text-xs">
+                      <span className="text-gray-600">{m.email ?? m.user_id.slice(0, 8)}</span>
+                      {isOrganizer && (
+                        <select
+                          className="border rounded px-1 py-0.5 text-xs"
+                          value={g.id}
+                          onChange={(e) => assignParticipant(m.id, e.target.value || null)}
+                        >
+                          <option value={g.id}>{g.name}</option>
+                          {groups.filter(og => og.id !== g.id).map(og => (
+                            <option key={og.id} value={og.id}>{og.name}</option>
+                          ))}
+                          <option value="">Unassign</option>
+                        </select>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )
         })}
