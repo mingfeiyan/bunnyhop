@@ -92,3 +92,22 @@ export type TimelineEvent = {
   rawText: string
   dateUnclear: boolean
 }
+
+// Row type for the timeline_events table — structured booking data
+export type TimelineEventRow = {
+  id: string
+  trip_id: string
+  type: 'flight' | 'hotel'
+  title: string
+  start_date: string          // YYYY-MM-DD
+  end_date: string | null     // YYYY-MM-DD
+  start_time: string | null   // HH:MM 24h
+  end_time: string | null     // HH:MM 24h
+  origin: string | null
+  destination: string | null
+  reference: string | null
+  details: Record<string, unknown>
+  added_by: string
+  source: 'manual' | 'agent' | 'email'
+  created_at: string
+}
