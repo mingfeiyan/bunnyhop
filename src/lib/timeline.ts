@@ -18,6 +18,20 @@ function validIsoDate(value: unknown): string {
   return value
 }
 
+// Convert HH:MM 24-hour format to 12-hour format with AM/PM. Returns the input
+// unchanged if it doesn't look like HH:MM.
+function formatTime12h(value: string): string {
+  if (!value) return ''
+  const match = value.match(/^(\d{1,2}):(\d{2})$/)
+  if (!match) return value
+  const h = Number(match[1])
+  const m = Number(match[2])
+  if (h < 0 || h > 23 || m < 0 || m > 59) return value
+  const period = h >= 12 ? 'PM' : 'AM'
+  const hour12 = h % 12 || 12
+  return `${hour12}:${match[2]} ${period}`
+}
+
 export function expandContextToEvents(
   ctx: TripContext,
   familyName: string | null,
@@ -34,20 +48,26 @@ export function expandContextToEvents(
     const flightNumber = (details.flight_number as string) || ''
     const origin = (details.origin as string) || ''
     const destination = (details.destination as string) || ''
-    const arrivalTime = (details.arrival_time as string) || ''
-    const departureTime = (details.departure_time as string) || ''
+    const arrivalTime = formatTime12h((details.arrival_time as string) || '')
+    const departureTime = formatTime12h((details.departure_time as string) || '')
     const hasArrival = !!destination
     const eventType = hasArrival ? 'arrival' : 'departure'
-    const timeStr = hasArrival ? arrivalTime : departureTime
     const routeStr = origin && destination ? `${origin} → ${destination}` : ''
-    const parts = [airline, flightNumber, routeStr, timeStr ? `at ${timeStr}` : ''].filter(Boolean)
+
+    // Show both depart and arrive times when available
+    const timeParts: string[] = []
+    if (departureTime) timeParts.push(`depart ${departureTime}`)
+    if (arrivalTime) timeParts.push(`arrive ${arrivalTime}`)
+    const timeStr = timeParts.join(', ')
+
+    const parts = [airline, flightNumber, routeStr, timeStr].filter(Boolean)
 
     return [{
       id: `${ctx.id}-flight`,
       date,
       type: eventType,
       icon: '✈️',
-      title: familyName ? `${familyName} ${eventType === 'arrival' ? 'arrives' : 'departs'}` : (eventType === 'arrival' ? 'Arrival' : 'Departure'),
+      title: eventType === 'arrival' ? 'Arrival' : 'Departure',
       description: parts.join(' — ') || ctx.raw_text,
       familyName,
       familyColor,
@@ -72,7 +92,7 @@ export function expandContextToEvents(
       date: checkIn,
       type: 'check_in',
       icon: '🏨',
-      title: familyName ? `${familyName} checks in` : 'Hotel check-in',
+      title: 'Hotel check-in',
       description: [hotelName, nightsStr].filter(Boolean).join(', ') || ctx.raw_text,
       familyName,
       familyColor,
@@ -85,7 +105,7 @@ export function expandContextToEvents(
       date: checkOut,
       type: 'check_out',
       icon: '🏨',
-      title: familyName ? `${familyName} checks out` : 'Hotel check-out',
+      title: 'Hotel check-out',
       description: hotelName || ctx.raw_text,
       familyName,
       familyColor,
@@ -202,14 +222,15 @@ export function formatDateHeader(isoDate: string, timezone: string | null): stri
   const options: Intl.DateTimeFormatOptions = {
     month: 'long',
     day: 'numeric',
+    year: 'numeric',
     weekday: 'short',
     timeZone: tz,
   }
   const formatted = new Date(utcMs).toLocaleDateString('en-US', options)
-  // Intl gives "Sat, July 5" — reformat to "July 5 (Sat)"
+  // Intl gives "Sat, July 5, 2026" — reformat to "July 5, 2026 (Sat)"
   const parts = formatted.split(', ')
-  if (parts.length === 2) {
-    return `${parts[1]} (${parts[0]})`
+  if (parts.length === 3) {
+    return `${parts[1]}, ${parts[2]} (${parts[0]})`
   }
   return formatted
 }

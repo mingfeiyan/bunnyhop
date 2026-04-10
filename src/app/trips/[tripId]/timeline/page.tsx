@@ -164,11 +164,6 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
                             <span className="font-semibold text-sm">{ev.title}</span>
                           </div>
                           <p className="text-xs text-gray-500">{ev.description}</p>
-                          {ev.familyName && colors && (
-                            <span className={`inline-block mt-1.5 text-xs ${colors.bg} ${colors.text} px-2 py-0.5 rounded-full font-medium`}>
-                              {ev.familyName}
-                            </span>
-                          )}
                         </div>
                       )
                     })}
