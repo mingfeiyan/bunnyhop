@@ -11,7 +11,13 @@ const TYPE_ICONS: Record<string, string> = {
   note: '📝',
 }
 
-export default function TripContextSection({ tripId }: { tripId: string }) {
+type Props = {
+  tripId: string
+  currentUserId: string | null
+  isOrganizer: boolean
+}
+
+export default function TripContextSection({ tripId, currentUserId, isOrganizer }: Props) {
   const supabase = createClient()
   const [contexts, setContexts] = useState<TripContext[]>([])
   const [input, setInput] = useState('')
@@ -26,23 +32,42 @@ export default function TripContextSection({ tripId }: { tripId: string }) {
       .select('*')
       .eq('trip_id', tripId)
       .order('created_at', { ascending: true })
-      .then(({ data }: { data: any }) => { if (data) setContexts(data) })
+      .then(({ data }: { data: TripContext[] | null }) => { if (data) setContexts(data) })
 
-    // Subscribe to new context
+    // Subscribe to inserts and deletes
     const channel = supabase
       .channel(`trip-context-${tripId}`)
       .on('postgres_changes', {
-        event: 'INSERT',
+        event: '*',
         schema: 'public',
         table: 'trip_context',
         filter: `trip_id=eq.${tripId}`,
-      }, (payload: any) => {
-        setContexts(prev => [...prev, payload.new as TripContext])
+      }, (payload: { eventType: string; new: TripContext; old: { id: string } }) => {
+        if (payload.eventType === 'INSERT') {
+          setContexts(prev => [...prev, payload.new])
+        } else if (payload.eventType === 'DELETE') {
+          setContexts(prev => prev.filter(c => c.id !== payload.old.id))
+        }
       })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [tripId, supabase])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripId])
+
+  async function deleteEntry(entryId: string) {
+    setError(null)
+    const { error: deleteError } = await supabase
+      .from('trip_context')
+      .delete()
+      .eq('id', entryId)
+
+    if (deleteError) {
+      setError(deleteError.message)
+      return
+    }
+    setContexts(prev => prev.filter(c => c.id !== entryId))
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -81,15 +106,28 @@ export default function TripContextSection({ tripId }: { tripId: string }) {
         <div className="mt-4">
           {/* Context list */}
           <div className="space-y-2 mb-4">
-            {contexts.map(ctx => (
-              <div key={ctx.id} className="flex items-start gap-2 text-sm">
-                <span>{TYPE_ICONS[ctx.type] ?? '📋'}</span>
-                <div>
-                  <p className="text-gray-800">{ctx.raw_text}</p>
-                  <p className="text-xs text-gray-400 capitalize">{ctx.source}</p>
+            {contexts.map(ctx => {
+              const canDelete = isOrganizer || (currentUserId !== null && ctx.added_by === currentUserId)
+              return (
+                <div key={ctx.id} className="flex items-start justify-between gap-2 text-sm">
+                  <div className="flex items-start gap-2 flex-1 min-w-0">
+                    <span>{TYPE_ICONS[ctx.type] ?? '📋'}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-gray-800 break-words">{ctx.raw_text}</p>
+                      <p className="text-xs text-gray-400 capitalize">{ctx.source}</p>
+                    </div>
+                  </div>
+                  {canDelete && (
+                    <button
+                      onClick={() => deleteEntry(ctx.id)}
+                      className="text-xs text-red-400 hover:text-red-600 shrink-0"
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
             {contexts.length === 0 && (
               <p className="text-sm text-gray-400">No details added yet. Add flights, hotels, or any constraints.</p>
             )}

@@ -67,7 +67,11 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
         />
 
         {/* Trip context (collapsible) with realtime updates */}
-        <TripContextSection tripId={tripId} />
+        <TripContextSection
+          tripId={tripId}
+          currentUserId={user?.id ?? null}
+          isOrganizer={isOrganizer}
+        />
 
         {/* Discover */}
         <div className="bg-white rounded-2xl shadow-sm p-6">
