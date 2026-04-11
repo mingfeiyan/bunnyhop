@@ -114,6 +114,25 @@ export async function POST(
     })
   )
 
+  // Debug: do one direct Google Places call so we can see the raw API status
+  // (e.g. REQUEST_DENIED if Places API isn't enabled, INVALID_REQUEST, etc.)
+  let debugRaw: unknown = null
+  if (needsBackfill.length > 0 && process.env.GOOGLE_PLACES_API_KEY) {
+    const debugQuery = `${needsBackfill[0].title} ${destination}`.trim()
+    try {
+      const debugRes = await fetch(
+        `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(debugQuery)}&inputtype=textquery&fields=photos,place_id,rating,user_ratings_total&key=${process.env.GOOGLE_PLACES_API_KEY}`
+      )
+      debugRaw = {
+        http_status: debugRes.status,
+        body: await debugRes.json(),
+        query: debugQuery,
+      }
+    } catch (err) {
+      debugRaw = { error: err instanceof Error ? err.message : String(err) }
+    }
+  }
+
   return NextResponse.json({
     has_places_api_key: Boolean(process.env.GOOGLE_PLACES_API_KEY),
     total_cards: cards?.length ?? 0,
@@ -121,6 +140,7 @@ export async function POST(
     updated: results.filter(r => r.status === 'ok').length,
     no_data: results.filter(r => r.status === 'no_places_data').length,
     errors: results.filter(r => r.status === 'error').length,
+    debug_first_call: debugRaw,
     results,
   })
 }
