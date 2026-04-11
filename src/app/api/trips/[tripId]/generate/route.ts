@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { generateCards } from '@/lib/card-generator'
-import { searchPlacePhoto } from '@/lib/google-places'
+import { searchPlace } from '@/lib/google-places'
 import { NextResponse } from 'next/server'
 
 export async function POST(
@@ -96,20 +96,28 @@ export async function POST(
   }
   console.log(`Inserted ${inserted?.length} cards`)
 
-  // Fetch photos for inserted cards
+  // Fetch photo + rating + place_id for inserted cards in a single Places call each
   if (inserted && inserted.length > 0) {
-    const photoUpdates = inserted.map(async (card) => {
+    const placeUpdates = inserted.map(async (card) => {
       const query = card.metadata?.photo_search_query
       if (!query) return
-      const photoUrl = await searchPlacePhoto(query as string)
-      if (photoUrl) {
-        await supabase
-          .from('cards')
-          .update({ image_url: photoUrl })
-          .eq('id', card.id)
-      }
+      const place = await searchPlace(query as string)
+
+      // Build the metadata patch with whatever we got back
+      const metadataPatch: Record<string, unknown> = { ...card.metadata }
+      if (place.place_id !== null) metadataPatch.google_place_id = place.place_id
+      if (place.rating !== null) metadataPatch.rating = place.rating
+      if (place.rating_count !== null) metadataPatch.rating_count = place.rating_count
+
+      const update: Record<string, unknown> = { metadata: metadataPatch }
+      if (place.photo_url) update.image_url = place.photo_url
+
+      await supabase
+        .from('cards')
+        .update(update)
+        .eq('id', card.id)
     })
-    await Promise.allSettled(photoUpdates)
+    await Promise.allSettled(placeUpdates)
   }
 
   return NextResponse.json({ cards: inserted, count: inserted?.length })
