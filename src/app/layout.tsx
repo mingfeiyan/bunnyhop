@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Playfair_Display, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
-import UIThemeToggle from "@/components/UIThemeToggle";
 
-// Default theme fonts (preserved)
+// Default theme fonts (still loaded — referenced by the dual-tree
+// .theme-default-tree blocks that haven't been deleted yet. The follow-up
+// dual-tree teardown commit will drop these too along with the default JSX.)
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -13,7 +14,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Editorial theme fonts (only used inside .theme-editorial scope / .theme-editorial-tree)
+// Editorial theme fonts — the live ones.
 const playfair = Playfair_Display({
   variable: "--font-serif",
   subsets: ["latin"],
@@ -31,19 +32,12 @@ export const metadata: Metadata = {
   description: "Plan trips together, the fun way",
 };
 
-// Inline script that runs before React hydrates. Reads the persisted theme
-// from localStorage and sets the html class so the editorial overrides apply
-// on first paint — no flash of default styles for users who chose editorial.
-const themeInitScript = `
-(function () {
-  try {
-    var t = localStorage.getItem('bunnyhop:ui-theme');
-    if (t === 'editorial') {
-      document.documentElement.classList.add('theme-editorial');
-    }
-  } catch (e) {}
-})();
-`;
+// Editorial is now the only theme. Set the .theme-editorial class on the
+// html element synchronously before React hydrates so the cream background
+// + serif font apply on first paint, no flash. The toggle component is
+// no longer rendered. Future cleanup: drop the dual-tree wrappers from
+// every page/component and unscope the editorial overrides in globals.css.
+const themeInitScript = `document.documentElement.classList.add('theme-editorial');`;
 
 export default function RootLayout({
   children,
@@ -59,7 +53,6 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${ibmPlexMono.variable} antialiased`}
       >
         {children}
-        <UIThemeToggle />
       </body>
     </html>
   );
