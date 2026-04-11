@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import PillButton from '@/components/ui/PillButton'
 import MonoLabel from '@/components/ui/MonoLabel'
+import { EditorialInput } from '@/components/ui/EditorialInput'
 import type { Trip } from '@/types'
 
 type Props = {
@@ -153,109 +154,48 @@ export default function EditTripDetailsModal({ trip, onClose, onSaved }: Props) 
               </h2>
             </div>
 
-            <div className="mb-4">
-              <MonoLabel className="block mb-1">trip name</MonoLabel>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                style={{
-                  width: '100%',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '17px',
-                  border: 'none',
-                  borderBottom: '1px solid var(--stroke)',
-                  padding: '6px 0',
-                  background: 'transparent',
-                  color: 'var(--stroke)',
-                  outline: 'none',
-                }}
-              />
-            </div>
+            <EditorialInput
+              label="trip name"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
 
-            <div className="mb-4">
-              <MonoLabel className="block mb-1">destination</MonoLabel>
-              <input
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                placeholder="Bora Bora, French Polynesia"
-                style={{
-                  width: '100%',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '17px',
-                  border: 'none',
-                  borderBottom: '1px solid var(--stroke)',
-                  padding: '6px 0',
-                  background: 'transparent',
-                  color: 'var(--stroke)',
-                  outline: 'none',
-                }}
-              />
-            </div>
+            <EditorialInput
+              label="destination"
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              placeholder="Bora Bora, French Polynesia"
+            />
 
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <MonoLabel className="block mb-1">start date</MonoLabel>
-                <input
-                  type="date"
-                  value={dateStart}
-                  onChange={(e) => setDateStart(e.target.value)}
-                  style={{
-                    width: '100%',
-                    fontFamily: 'var(--font-serif)',
-                    fontSize: '14px',
-                    border: 'none',
-                    borderBottom: '1px solid var(--stroke)',
-                    padding: '6px 0',
-                    background: 'transparent',
-                    color: 'var(--stroke)',
-                    outline: 'none',
-                  }}
-                />
-              </div>
-              <div>
-                <MonoLabel className="block mb-1">end date</MonoLabel>
-                <input
-                  type="date"
-                  value={dateEnd}
-                  onChange={(e) => setDateEnd(e.target.value)}
-                  style={{
-                    width: '100%',
-                    fontFamily: 'var(--font-serif)',
-                    fontSize: '14px',
-                    border: 'none',
-                    borderBottom: '1px solid var(--stroke)',
-                    padding: '6px 0',
-                    background: 'transparent',
-                    color: 'var(--stroke)',
-                    outline: 'none',
-                  }}
-                />
-              </div>
+              <EditorialInput
+                label="start date"
+                type="date"
+                value={dateStart}
+                onChange={(e) => setDateStart(e.target.value)}
+                fontSize={14}
+                containerClassName=""
+              />
+              <EditorialInput
+                label="end date"
+                type="date"
+                value={dateEnd}
+                onChange={(e) => setDateEnd(e.target.value)}
+                fontSize={14}
+                containerClassName=""
+              />
             </div>
 
-            <div className="mb-5">
-              <MonoLabel className="block mb-1">timezone</MonoLabel>
-              <input
-                value={timezone}
-                onChange={(e) => setTimezone(e.target.value)}
-                placeholder="Pacific/Tahiti"
-                style={{
-                  width: '100%',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '14px',
-                  border: 'none',
-                  borderBottom: '1px solid var(--stroke)',
-                  padding: '6px 0',
-                  background: 'transparent',
-                  color: 'var(--stroke)',
-                  outline: 'none',
-                }}
-              />
-              <p className="detail-mono mt-1" style={{ opacity: 0.6 }}>
-                IANA timezone for displaying local times
-              </p>
-            </div>
+            <EditorialInput
+              label="timezone"
+              value={timezone}
+              onChange={(e) => setTimezone(e.target.value)}
+              placeholder="Pacific/Tahiti"
+              fontSize={14}
+              hint="IANA timezone for displaying local times"
+              containerClassName="mb-5"
+            />
 
             {error && (
               <p className="detail-mono mb-3" style={{ color: 'var(--consensus-pass)' }}>

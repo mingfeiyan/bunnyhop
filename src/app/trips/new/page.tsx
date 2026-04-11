@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import PageShell from '@/components/ui/PageShell'
 import PageHeader from '@/components/ui/PageHeader'
 import PillButton from '@/components/ui/PillButton'
-import MonoLabel from '@/components/ui/MonoLabel'
+import { EditorialInput } from '@/components/ui/EditorialInput'
 
 export default function NewTripPage() {
   const router = useRouter()
@@ -124,113 +124,56 @@ export default function NewTripPage() {
             automatically as you add bookings.
           </p>
           <form onSubmit={handleSubmit} className="px-5 pb-12">
-            <div className="mb-5">
-              <MonoLabel className="block mb-1">trip name</MonoLabel>
-              <input
-                id="title"
-                name="title"
-                type="text"
-                required
-                placeholder="Summer 2026 Family Trip"
-                style={{
-                  width: '100%',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '18px',
-                  border: 'none',
-                  borderBottom: '1px solid var(--stroke)',
-                  padding: '6px 0',
-                  background: 'transparent',
-                  color: 'var(--stroke)',
-                  outline: 'none',
-                }}
-              />
-            </div>
+            <EditorialInput
+              label="trip name"
+              id="title"
+              name="title"
+              type="text"
+              required
+              placeholder="Summer 2026 Family Trip"
+              fontSize={18}
+              containerClassName="mb-5"
+            />
 
-            <div className="mb-5">
-              <MonoLabel className="block mb-1">destination · optional</MonoLabel>
-              <input
-                id="destination"
-                name="destination"
-                type="text"
-                placeholder="Bora Bora — or leave blank, we'll fill it in"
-                style={{
-                  width: '100%',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '18px',
-                  border: 'none',
-                  borderBottom: '1px solid var(--stroke)',
-                  padding: '6px 0',
-                  background: 'transparent',
-                  color: 'var(--stroke)',
-                  outline: 'none',
-                }}
-              />
-            </div>
+            <EditorialInput
+              label="destination · optional"
+              id="destination"
+              name="destination"
+              type="text"
+              placeholder="Bora Bora — or leave blank, we'll fill it in"
+              fontSize={18}
+              containerClassName="mb-5"
+            />
 
             <div className="grid grid-cols-2 gap-5 mb-5">
-              <div>
-                <MonoLabel className="block mb-1">start date · optional</MonoLabel>
-                <input
-                  id="date_start"
-                  name="date_start"
-                  type="date"
-                  style={{
-                    width: '100%',
-                    fontFamily: 'var(--font-serif)',
-                    fontSize: '15px',
-                    border: 'none',
-                    borderBottom: '1px solid var(--stroke)',
-                    padding: '6px 0',
-                    background: 'transparent',
-                    color: 'var(--stroke)',
-                    outline: 'none',
-                  }}
-                />
-              </div>
-              <div>
-                <MonoLabel className="block mb-1">end date · optional</MonoLabel>
-                <input
-                  id="date_end"
-                  name="date_end"
-                  type="date"
-                  style={{
-                    width: '100%',
-                    fontFamily: 'var(--font-serif)',
-                    fontSize: '15px',
-                    border: 'none',
-                    borderBottom: '1px solid var(--stroke)',
-                    padding: '6px 0',
-                    background: 'transparent',
-                    color: 'var(--stroke)',
-                    outline: 'none',
-                  }}
-                />
-              </div>
+              <EditorialInput
+                label="start date · optional"
+                id="date_start"
+                name="date_start"
+                type="date"
+                fontSize={15}
+                containerClassName=""
+              />
+              <EditorialInput
+                label="end date · optional"
+                id="date_end"
+                name="date_end"
+                type="date"
+                fontSize={15}
+                containerClassName=""
+              />
             </div>
 
-            <div className="mb-6">
-              <MonoLabel className="block mb-1">destination timezone</MonoLabel>
-              <input
-                id="timezone"
-                name="timezone"
-                type="text"
-                placeholder="Pacific/Tahiti"
-                style={{
-                  width: '100%',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '15px',
-                  border: 'none',
-                  borderBottom: '1px solid var(--stroke)',
-                  padding: '6px 0',
-                  background: 'transparent',
-                  color: 'var(--stroke)',
-                  outline: 'none',
-                }}
-              />
-              <p className="detail-mono mt-1" style={{ opacity: 0.6 }}>
-                IANA timezone for displaying local times
-              </p>
-            </div>
+            <EditorialInput
+              label="destination timezone"
+              id="timezone"
+              name="timezone"
+              type="text"
+              placeholder="Pacific/Tahiti"
+              fontSize={15}
+              hint="IANA timezone for displaying local times"
+              containerClassName="mb-6"
+            />
 
             {error && (
               <p className="detail-mono mb-3" style={{ color: 'var(--consensus-pass)' }}>

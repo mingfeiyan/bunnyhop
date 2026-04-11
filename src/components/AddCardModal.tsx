@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import PillButton from '@/components/ui/PillButton'
 import MonoLabel from '@/components/ui/MonoLabel'
+import { EditorialInput, EditorialTextarea, EditorialSelect } from '@/components/ui/EditorialInput'
 
 type Props = {
   tripId: string
@@ -118,91 +119,42 @@ export default function AddCardModal({ tripId, onClose, onAdded }: Props) {
               </h2>
             </div>
 
-            <div className="mb-4">
-              <MonoLabel className="block mb-1">name</MonoLabel>
-              <input
-                id="title"
-                name="title"
-                required
-                placeholder="Amazing Sushi Place"
-                style={{
-                  width: '100%',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '15px',
-                  border: 'none',
-                  borderBottom: '1px solid var(--stroke)',
-                  padding: '6px 0',
-                  background: 'transparent',
-                  color: 'var(--stroke)',
-                  outline: 'none',
-                }}
-              />
-            </div>
+            <EditorialInput
+              label="name"
+              id="title"
+              name="title"
+              required
+              placeholder="Amazing Sushi Place"
+              fontSize={15}
+            />
 
-            <div className="mb-4">
-              <MonoLabel className="block mb-1">one-liner (optional)</MonoLabel>
-              <input
-                id="tagline"
-                name="tagline"
-                placeholder="Best sushi outside of Japan"
-                style={{
-                  width: '100%',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '15px',
-                  border: 'none',
-                  borderBottom: '1px solid var(--stroke)',
-                  padding: '6px 0',
-                  background: 'transparent',
-                  color: 'var(--stroke)',
-                  outline: 'none',
-                }}
-              />
-            </div>
+            <EditorialInput
+              label="one-liner (optional)"
+              id="tagline"
+              name="tagline"
+              placeholder="Best sushi outside of Japan"
+              fontSize={15}
+            />
 
-            <div className="mb-4">
-              <MonoLabel className="block mb-1">category</MonoLabel>
-              <select
-                id="category"
-                name="category"
-                required
-                style={{
-                  width: '100%',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '15px',
-                  border: 'none',
-                  borderBottom: '1px solid var(--stroke)',
-                  padding: '6px 0',
-                  background: 'transparent',
-                  color: 'var(--stroke)',
-                  outline: 'none',
-                }}
-              >
-                <option value="restaurant">Restaurant</option>
-                <option value="activity">Activity</option>
-                <option value="sightseeing">Sightseeing</option>
-              </select>
-            </div>
+            <EditorialSelect
+              label="category"
+              id="category"
+              name="category"
+              required
+            >
+              <option value="restaurant">Restaurant</option>
+              <option value="activity">Activity</option>
+              <option value="sightseeing">Sightseeing</option>
+            </EditorialSelect>
 
-            <div className="mb-5">
-              <MonoLabel className="block mb-1">why should we go? (optional)</MonoLabel>
-              <textarea
-                id="description"
-                name="description"
-                rows={3}
-                placeholder="My coworker said this place is incredible..."
-                style={{
-                  width: '100%',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '15px',
-                  border: '1px solid var(--stroke)',
-                  padding: '8px',
-                  background: 'transparent',
-                  color: 'var(--stroke)',
-                  outline: 'none',
-                  resize: 'vertical',
-                }}
-              />
-            </div>
+            <EditorialTextarea
+              label="why should we go? (optional)"
+              id="description"
+              name="description"
+              rows={3}
+              placeholder="My coworker said this place is incredible..."
+              containerClassName="mb-5"
+            />
 
             <div className="flex gap-3">
               <PillButton type="button" onClick={onClose}>cancel</PillButton>
