@@ -4,6 +4,11 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import ResultsCard from '@/components/ResultsCard'
+import PageShell from '@/components/ui/PageShell'
+import PageHeader from '@/components/ui/PageHeader'
+import OverviewGrid from '@/components/ui/OverviewGrid'
+import DaySection from '@/components/ui/DaySection'
+import PillButton from '@/components/ui/PillButton'
 import type { Card, Swipe, SwipeResult } from '@/types'
 import Link from 'next/link'
 
@@ -51,6 +56,7 @@ export default function ResultsPage() {
   const [filter, setFilter] = useState<FilterCategory>('all')
   const [userMap, setUserMap] = useState<Record<string, string>>({})
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [destination, setDestination] = useState('')
   const cardIdsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
@@ -58,6 +64,14 @@ export default function ResultsPage() {
       // Fetch current user
       const { data: { user } } = await supabase.auth.getUser()
       setCurrentUserId(user?.id ?? null)
+
+      // Fetch trip destination for the editorial header
+      const { data: trip } = await supabase
+        .from('trips')
+        .select('destination')
+        .eq('id', tripId)
+        .single()
+      setDestination((trip?.destination as string) ?? '')
 
       // Fetch participant display info via existing RPC (from migration 006)
       const { data: participants } = await supabase
@@ -115,55 +129,143 @@ export default function ResultsPage() {
   const mixed = filtered.filter(r => r.consensus === 'mixed')
   const hardPass = filtered.filter(r => r.consensus === 'hard_pass')
 
+  // Editorial-tree precomputed values
+  const totalCards = results.length
+  const consensusRate =
+    totalCards > 0
+      ? Math.round(((results.length - results.filter(r => r.consensus === 'mixed').length) / totalCards) * 100)
+      : 0
+
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-md mx-auto space-y-6">
-        <Link href={`/trips/${tripId}`} className="text-sm text-blue-600">&larr; Back to trip</Link>
+    <>
+      {/* === Default tree === */}
+      <div className="theme-default-tree">
+        <div className="min-h-screen bg-gray-50 p-4">
+          <div className="max-w-md mx-auto space-y-6">
+            <Link href={`/trips/${tripId}`} className="text-sm text-blue-600">&larr; Back to trip</Link>
 
-        <h1 className="text-2xl font-bold">Group Results</h1>
+            <h1 className="text-2xl font-bold">Group Results</h1>
 
-        <div className="flex gap-2">
-          {(['all', 'restaurant', 'activity', 'sightseeing'] as FilterCategory[]).map(cat => (
-            <button key={cat} onClick={() => setFilter(cat)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium capitalize transition ${
-                filter === cat ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border'
-              }`}>
-              {cat}
-            </button>
-          ))}
+            <div className="flex gap-2">
+              {(['all', 'restaurant', 'activity', 'sightseeing'] as FilterCategory[]).map(cat => (
+                <button key={cat} onClick={() => setFilter(cat)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium capitalize transition ${
+                    filter === cat ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border'
+                  }`}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {everyoneLoves.length > 0 && (
+              <section>
+                <h2 className="font-semibold text-green-700 mb-2">Everyone Loves ({everyoneLoves.length})</h2>
+                <div className="space-y-2">
+                  {everyoneLoves.map(r => <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />)}
+                </div>
+              </section>
+            )}
+
+            {mixed.length > 0 && (
+              <section>
+                <h2 className="font-semibold text-yellow-700 mb-2">Mixed Feelings ({mixed.length})</h2>
+                <div className="space-y-2">
+                  {mixed.map(r => <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />)}
+                </div>
+              </section>
+            )}
+
+            {hardPass.length > 0 && (
+              <section>
+                <h2 className="font-semibold text-red-700 mb-2">Hard Pass ({hardPass.length})</h2>
+                <div className="space-y-2">
+                  {hardPass.map(r => <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />)}
+                </div>
+              </section>
+            )}
+
+            {filtered.length === 0 && (
+              <p className="text-gray-400 text-center py-8">No results yet. Start swiping!</p>
+            )}
+          </div>
         </div>
-
-        {everyoneLoves.length > 0 && (
-          <section>
-            <h2 className="font-semibold text-green-700 mb-2">Everyone Loves ({everyoneLoves.length})</h2>
-            <div className="space-y-2">
-              {everyoneLoves.map(r => <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />)}
-            </div>
-          </section>
-        )}
-
-        {mixed.length > 0 && (
-          <section>
-            <h2 className="font-semibold text-yellow-700 mb-2">Mixed Feelings ({mixed.length})</h2>
-            <div className="space-y-2">
-              {mixed.map(r => <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />)}
-            </div>
-          </section>
-        )}
-
-        {hardPass.length > 0 && (
-          <section>
-            <h2 className="font-semibold text-red-700 mb-2">Hard Pass ({hardPass.length})</h2>
-            <div className="space-y-2">
-              {hardPass.map(r => <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />)}
-            </div>
-          </section>
-        )}
-
-        {filtered.length === 0 && (
-          <p className="text-gray-400 text-center py-8">No results yet. Start swiping!</p>
-        )}
       </div>
-    </div>
+
+      {/* === Editorial tree === */}
+      <div className="theme-editorial-tree">
+        <PageShell back={{ href: `/trips/${tripId}`, label: 'back to trip' }}>
+          <PageHeader kicker="group results" title={destination || 'Results'} />
+          {totalCards > 0 && (
+            <OverviewGrid
+              stats={[
+                { label: 'total cards', value: String(totalCards).padStart(2, '0') },
+                { label: 'consensus', value: `${consensusRate}%` },
+              ]}
+            />
+          )}
+
+          {/* Filter row */}
+          <div className="flex gap-2 px-5 py-4 flex-wrap">
+            {(['all', 'restaurant', 'activity', 'sightseeing'] as FilterCategory[]).map(cat => (
+              <PillButton
+                key={cat}
+                variant={filter === cat ? 'active' : 'default'}
+                onClick={() => setFilter(cat)}
+              >
+                {cat}
+              </PillButton>
+            ))}
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="px-5 py-10 text-center">
+              <p
+                style={{
+                  fontFamily: 'var(--font-serif)',
+                  fontSize: '18px',
+                  fontStyle: 'italic',
+                  opacity: 0.7,
+                }}
+              >
+                No results yet.
+              </p>
+              <p className="detail-mono mt-2">Start swiping to see what the group thinks.</p>
+            </div>
+          ) : (
+            <main className="pb-12">
+              {everyoneLoves.length > 0 && (
+                <DaySection title="Everyone loves" tag={`${everyoneLoves.length} cards`}>
+                  <div className="px-5 py-4">
+                    {everyoneLoves.map(r => (
+                      <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />
+                    ))}
+                  </div>
+                </DaySection>
+              )}
+
+              {mixed.length > 0 && (
+                <DaySection title="Mixed feelings" tag={`${mixed.length} cards`}>
+                  <div className="px-5 py-4">
+                    {mixed.map(r => (
+                      <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />
+                    ))}
+                  </div>
+                </DaySection>
+              )}
+
+              {hardPass.length > 0 && (
+                <DaySection title="Hard pass" tag={`${hardPass.length} cards`}>
+                  <div className="px-5 py-4">
+                    {hardPass.map(r => (
+                      <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />
+                    ))}
+                  </div>
+                </DaySection>
+              )}
+            </main>
+          )}
+        </PageShell>
+      </div>
+    </>
   )
 }
