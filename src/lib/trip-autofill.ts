@@ -30,20 +30,119 @@ type EventRow = {
   details: Record<string, unknown> | null
 }
 
-// Pull the city from a hotel address. Addresses parser-extracted by Claude
-// look like "1 Ritz Carlton Drive, Kapalua, HI 96761" — the city is the
-// second-to-last comma-separated chunk (the last chunk is "STATE ZIP" or
-// "STATE", and for international addresses the last chunk is the country).
-// For 2-part addresses ("Kapalua, HI"), the city is the first chunk.
-// For 1-part addresses, return as-is.
+// Pull the city out of a hotel address. The Claude parser produces addresses
+// in many shapes:
+//
+//   3-part US:        "1 Ritz Carlton Drive, Kapalua, HI 96761"
+//   4-part with ctry: "383 Kalaimoku St, Waikiki Beach, HI, USA"
+//   3-part intl:      "Pointe Tata A, Faaa, French Polynesia 98702"
+//   4-part Canadian:  "123 Main St, Vancouver, BC, Canada"
+//   2-part merged:    "3900 Wailea Alanui Drive, Kihei HI 96753"
+//   2-part normal:    "Honolulu, HI"
+//   city + country:   "Bora Bora, French Polynesia"
+//   no comma:         "Disneyland"
+//
+// Strategy:
+//   1. Strip a trailing country chunk if present (with or without trailing
+//      postal code), so the rest looks like a standard "street, city, state"
+//      address.
+//   2. For 3+ parts: the city is the second-to-last chunk.
+//   3. For 2 parts: distinguish "street, city STATE zip" (city in parts[1])
+//      from "city, state" (city in parts[0]) using the US state code list
+//      and a merged-city-state regex.
+//   4. For 1 part: detect if it's a single chunk like "Kihei HI 96753"
+//      with a merged city + state.
+//   5. Otherwise return the input unchanged.
 //
 // Exported for unit tests in src/test/trip-autofill.test.ts.
+
+// Common country names that show up at the end of comma-separated addresses.
+// Compared case-insensitively after stripping any trailing postal code.
+const COUNTRIES = new Set([
+  'USA', 'US', 'U.S.A.', 'U.S.', 'UNITED STATES', 'UNITED STATES OF AMERICA',
+  'CANADA',
+  'MEXICO',
+  'UK', 'U.K.', 'UNITED KINGDOM', 'ENGLAND', 'SCOTLAND', 'WALES', 'NORTHERN IRELAND',
+  'IRELAND',
+  'FRANCE', 'FRENCH POLYNESIA', 'ITALY', 'SPAIN', 'GERMANY', 'PORTUGAL', 'GREECE',
+  'NETHERLANDS', 'BELGIUM', 'SWITZERLAND', 'AUSTRIA', 'DENMARK', 'SWEDEN', 'NORWAY',
+  'FINLAND', 'ICELAND', 'POLAND', 'CZECH REPUBLIC', 'CZECHIA', 'HUNGARY', 'CROATIA',
+  'JAPAN', 'CHINA', 'KOREA', 'SOUTH KOREA', 'NORTH KOREA', 'TAIWAN', 'HONG KONG',
+  'INDIA', 'THAILAND', 'VIETNAM', 'PHILIPPINES', 'INDONESIA', 'SINGAPORE', 'MALAYSIA',
+  'AUSTRALIA', 'NEW ZEALAND', 'FIJI',
+  'BRAZIL', 'ARGENTINA', 'CHILE', 'PERU', 'COLOMBIA', 'COSTA RICA', 'PANAMA',
+  'EGYPT', 'MOROCCO', 'SOUTH AFRICA', 'KENYA', 'TANZANIA',
+  'TURKEY', 'GREECE', 'ISRAEL', 'UAE', 'UNITED ARAB EMIRATES',
+])
+
+// US state and territory codes. Used to disambiguate "city, state" from
+// "street, city" in 2-part addresses.
+const US_STATES = new Set([
+  'AK', 'AL', 'AR', 'AZ', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL',
+  'GA', 'HI', 'IA', 'ID', 'IL', 'IN', 'KS', 'KY', 'LA', 'MA',
+  'MD', 'ME', 'MI', 'MN', 'MO', 'MS', 'MT', 'NC', 'ND', 'NE',
+  'NH', 'NJ', 'NM', 'NV', 'NY', 'OH', 'OK', 'OR', 'PA', 'RI',
+  'SC', 'SD', 'TN', 'TX', 'UT', 'VA', 'VT', 'WA', 'WI', 'WV', 'WY',
+  'AS', 'GU', 'MP', 'PR', 'VI',
+])
+
+// Matches "City STATE [zip]" merged into a single chunk. Lazy `.+?` finds
+// the shortest city prefix such that the rest is a 2-letter state code with
+// optional 5-digit (+ optional 4) zip. Multi-word cities like "Salt Lake
+// City UT 84111" work because the regex backtracks until the state code
+// matches.
+const MERGED_CITY_STATE_RE = /^(.+?)\s+([A-Z]{2})(?:\s+\d{5}(?:-\d{4})?)?$/
+
+// Strip a trailing US-style postal code (5 digits or 5+4) and return the
+// rest. Used to test whether a chunk is a state or a country.
+function stripTrailingZip(s: string): string {
+  return s.replace(/\s*\d{5}(?:-\d{4})?\s*$/, '').trim()
+}
+
+function isCountry(part: string): boolean {
+  const stripped = stripTrailingZip(part).toUpperCase()
+  return COUNTRIES.has(stripped)
+}
+
+function isUsState(part: string): boolean {
+  const stripped = stripTrailingZip(part).toUpperCase()
+  return US_STATES.has(stripped)
+}
+
 export function cityFromAddress(address: string): string {
-  const parts = address.split(',').map(p => p.trim()).filter(Boolean)
+  let parts = address.split(',').map(p => p.trim()).filter(Boolean)
   if (parts.length === 0) return address
-  if (parts.length === 1) return parts[0]
-  if (parts.length === 2) return parts[0]
-  // 3+ parts: street(s), city, state(/zip)[, country]
+
+  // (1) Strip trailing country chunks. Handles "..., HI, USA" → "..., HI"
+  // and "..., French Polynesia 98702" → "...".
+  while (parts.length > 1 && isCountry(parts[parts.length - 1])) {
+    parts = parts.slice(0, -1)
+  }
+
+  // After stripping, decide based on length:
+
+  if (parts.length === 1) {
+    // (4) Single chunk: detect merged "City STATE [zip]" form, otherwise
+    // return as-is. This handles "Bora Bora" (after country strip) and
+    // "Kihei HI 96753" (when there's no street prefix).
+    const merged = parts[0].match(MERGED_CITY_STATE_RE)
+    if (merged) return merged[1]
+    return parts[0]
+  }
+
+  if (parts.length === 2) {
+    // (3) Two chunks. Three sub-cases:
+    //   a) "street, city STATE zip" — city is inside parts[1] (merged form).
+    //   b) "city, state" / "city, state zip" — city is parts[0].
+    //   c) "street, city" (post-country-strip) — city is parts[1].
+    const merged = parts[1].match(MERGED_CITY_STATE_RE)
+    if (merged) return merged[1]
+    if (isUsState(parts[1])) return parts[0]
+    return parts[1]
+  }
+
+  // (2) 3+ parts: street(s), city, state[+zip]. The city is the
+  // second-to-last chunk.
   return parts[parts.length - 2]
 }
 
