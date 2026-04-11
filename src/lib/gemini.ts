@@ -27,13 +27,27 @@ function buildPrompt(destination: string): string {
   ].join(' ')
 }
 
+// Read the Gemini API key from any of the common env var names. Vercel
+// templates / Google examples use a few different conventions and we don't
+// want to force a rename.
+function readApiKey(): string | null {
+  return (
+    process.env.GOOGLE_GEMINI_API_KEY ||
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+    process.env.GOOGLE_AI_API_KEY ||
+    null
+  )
+}
+
 // Call Imagen 3 and return the first sample as a Buffer.
 // Returns null if the API returns no image (e.g. content filter).
 // Throws if the API key is missing or the request fails outright.
 export async function generateCoverImage(destination: string): Promise<GeneratedImage | null> {
-  const apiKey = process.env.GEMINI_API_KEY
+  const apiKey = readApiKey()
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not set')
+    throw new Error('No Gemini API key found (checked GOOGLE_GEMINI_API_KEY, GEMINI_API_KEY, GOOGLE_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, GOOGLE_AI_API_KEY)')
   }
   const model = process.env.GEMINI_IMAGE_MODEL || DEFAULT_MODEL
 
