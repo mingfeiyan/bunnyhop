@@ -171,7 +171,9 @@ export default async function TripsPage() {
                   const dateStr = trip.date_start && trip.date_end
                     ? `${new Date(trip.date_start).toLocaleDateString()} — ${new Date(trip.date_end).toLocaleDateString()}`
                     : 'dates pending'
-                  const details = [trip.destination, dateStr].filter(Boolean).join(' · ')
+                  const details = trip.destination
+                    ? `${trip.destination} · ${dateStr}`
+                    : dateStr
                   return (
                     <Link
                       key={trip.id}
@@ -183,6 +185,7 @@ export default async function TripsPage() {
                         <img
                           src={trip.cover_image_url}
                           alt={trip.destination ?? trip.title}
+                          loading="lazy"
                           style={{
                             width: '100%',
                             height: '160px',

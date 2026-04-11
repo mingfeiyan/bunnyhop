@@ -30,14 +30,20 @@ type EventRow = {
 }
 
 // Pull the city from a hotel address. Addresses parser-extracted by Claude
-// look like "1 Ritz Carlton Drive, Kapalua, HI 96761" — the second-to-last
-// comma-separated chunk is usually the city. If we can't parse it, return
-// the raw address (better than nothing). For non-comma addresses, return as-is.
-function cityFromAddress(address: string): string {
+// look like "1 Ritz Carlton Drive, Kapalua, HI 96761" — the city is the
+// second-to-last comma-separated chunk (the last chunk is "STATE ZIP" or
+// "STATE", and for international addresses the last chunk is the country).
+// For 2-part addresses ("Kapalua, HI"), the city is the first chunk.
+// For 1-part addresses, return as-is.
+//
+// Exported for unit tests in src/test/trip-autofill.test.ts.
+export function cityFromAddress(address: string): string {
   const parts = address.split(',').map(p => p.trim()).filter(Boolean)
-  if (parts.length >= 3) return parts[parts.length - 3] // city,state,zip → city
-  if (parts.length === 2) return parts[0]                // street,city → city
-  return address
+  if (parts.length === 0) return address
+  if (parts.length === 1) return parts[0]
+  if (parts.length === 2) return parts[0]
+  // 3+ parts: street(s), city, state(/zip)[, country]
+  return parts[parts.length - 2]
 }
 
 // Compute the destination string from the events. Priority order:
@@ -85,16 +91,21 @@ export type AutofillResult = {
   destinationJustSet: boolean
 }
 
-// Read the trip + events, compute missing fields, write them back.
-// Returns which fields were filled and whether destination just transitioned
-// from null → set (so callers can fire generate-cover for the cover image).
+const EMPTY: AutofillResult = { filled: {}, destinationJustSet: false }
+
+// Read the trip + events, compute missing fields, write them back. Returns
+// which fields were filled and whether destination just transitioned from
+// null → set (so callers can fire generate-cover for the cover image).
+//
+// Best-effort: any error is logged with the [autofill] prefix and the
+// function returns EMPTY rather than throwing. The four endpoint hooks that
+// call this rely on the contract that an error here never breaks the parent
+// request — only the auto-fill side effect is skipped.
 export async function autofillTripFromEvents(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient<any, any, any>,
   tripId: string
 ): Promise<AutofillResult> {
-  const empty: AutofillResult = { filled: {}, destinationJustSet: false }
-
   try {
     const { data: trip, error: tripError } = await supabase
       .from('trips')
@@ -104,7 +115,7 @@ export async function autofillTripFromEvents(
 
     if (tripError || !trip) {
       console.error('[autofill] trip lookup failed:', tripError)
-      return empty
+      return EMPTY
     }
 
     const tripRow = trip as TripRow
@@ -114,7 +125,7 @@ export async function autofillTripFromEvents(
     const needsDateStart = tripRow.date_start === null
     const needsDateEnd = tripRow.date_end === null
     if (!needsDestination && !needsDateStart && !needsDateEnd) {
-      return empty
+      return EMPTY
     }
 
     const { data: events, error: eventsError } = await supabase
@@ -124,11 +135,11 @@ export async function autofillTripFromEvents(
 
     if (eventsError) {
       console.error('[autofill] events lookup failed:', eventsError)
-      return empty
+      return EMPTY
     }
 
     const eventRows = (events ?? []) as EventRow[]
-    if (eventRows.length === 0) return empty
+    if (eventRows.length === 0) return EMPTY
 
     const patch: Partial<TripRow> = {}
     const filled: AutofillResult['filled'] = {}
@@ -155,7 +166,7 @@ export async function autofillTripFromEvents(
       }
     }
 
-    if (Object.keys(patch).length === 0) return empty
+    if (Object.keys(patch).length === 0) return EMPTY
 
     const { error: updateError } = await supabase
       .from('trips')
@@ -164,7 +175,7 @@ export async function autofillTripFromEvents(
 
     if (updateError) {
       console.error('[autofill] trip update failed:', updateError)
-      return empty
+      return EMPTY
     }
 
     return {
@@ -173,7 +184,7 @@ export async function autofillTripFromEvents(
     }
   } catch (err) {
     console.error('[autofill] unexpected:', err)
-    return empty
+    return EMPTY
   }
 }
 

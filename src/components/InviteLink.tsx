@@ -129,10 +129,10 @@ export default function InviteLink({ inviteCode, leadingButtons }: Props) {
         <div className="flex items-center gap-2 flex-wrap">
           {leadingButtons}
           <PillButton onClick={copyLink}>
-            {copiedLink ? 'copied' : 'copy invite link'}
+            {copiedLink ? 'copied' : 'invite link'}
           </PillButton>
           <PillButton onClick={() => setShowAgent(!showAgent)}>
-            {showAgent ? 'hide agent setup' : 'for ai agents'}
+            {showAgent ? 'hide agents' : 'for ai agents'}
           </PillButton>
         </div>
 
