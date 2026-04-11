@@ -50,6 +50,8 @@ export type Card = {
     latitude?: number
     longitude?: number
     rating?: number
+    rating_count?: number
+    google_place_id?: string
     review_snippets?: string[]
     why_this?: string
     photo_search_query?: string
