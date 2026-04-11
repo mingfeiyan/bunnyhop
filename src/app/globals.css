@@ -32,24 +32,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-cream: var(--cream);
   --color-stroke: var(--stroke);
-  --color-stroke-soft: var(--stroke-soft);
-
-  --color-family-indigo: var(--family-indigo);
-  --color-family-amber: var(--family-amber);
-  --color-family-emerald: var(--family-emerald);
-  --color-family-rose: var(--family-rose);
-  --color-family-sky: var(--family-sky);
-  --color-family-purple: var(--family-purple);
-
-  --color-consensus-loved: var(--consensus-loved);
-  --color-consensus-mixed: var(--consensus-mixed);
-  --color-consensus-pass: var(--consensus-pass);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-serif: var(--font-serif);
 }
 
 @media (prefers-color-scheme: dark) {
