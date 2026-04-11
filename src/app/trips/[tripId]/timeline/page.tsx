@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { computeOverlap, formatDateHeader } from '@/lib/timeline'
+import { tripCountdown } from '@/lib/trip-countdown'
 import TimelineEventCard from '@/components/TimelineEventCard'
 import TimelineRealtimeWrapper from '@/components/TimelineRealtimeWrapper'
 import PageShell from '@/components/ui/PageShell'
@@ -11,28 +12,6 @@ import OverviewGrid from '@/components/ui/OverviewGrid'
 import DaySection from '@/components/ui/DaySection'
 import MonoLabel from '@/components/ui/MonoLabel'
 import type { TripParticipant, FamilyGroup, TimelineEventRow } from '@/types'
-
-// Trip countdown — pure date math against today.
-// Returns one of: "X days to go" / "in progress · day X of Y" / "ended X days ago".
-function tripCountdown(start: string, end: string): string {
-  const today = new Date().toISOString().slice(0, 10)
-  const dayMs = 1000 * 60 * 60 * 24
-  const startMs = new Date(start).getTime()
-  const endMs = new Date(end).getTime()
-  const todayMs = new Date(today).getTime()
-
-  if (todayMs < startMs) {
-    const days = Math.round((startMs - todayMs) / dayMs)
-    return `${days} day${days === 1 ? '' : 's'} to go`
-  }
-  if (todayMs > endMs) {
-    const days = Math.round((todayMs - endMs) / dayMs)
-    return `ended ${days} day${days === 1 ? '' : 's'} ago`
-  }
-  const dayNum = Math.round((todayMs - startMs) / dayMs) + 1
-  const totalDays = Math.round((endMs - startMs) / dayMs) + 1
-  return `in progress · day ${dayNum} of ${totalDays}`
-}
 
 // One-word descriptor for a day, derived from the phases of its events.
 type Phase = 'flight' | 'check_in' | 'check_out' | 'activity'

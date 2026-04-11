@@ -4,6 +4,15 @@ import Link from 'next/link'
 import TripContextSection from '@/components/TripContextSection'
 import InviteLink from '@/components/InviteLink'
 import FamilyGroupManager from '@/components/FamilyGroupManager'
+import PageShell from '@/components/ui/PageShell'
+import PageHeader from '@/components/ui/PageHeader'
+import MetaStrip from '@/components/ui/MetaStrip'
+import OverviewGrid from '@/components/ui/OverviewGrid'
+import DaySection from '@/components/ui/DaySection'
+import EventCard from '@/components/ui/EventCard'
+import PillButton from '@/components/ui/PillButton'
+import MonoLabel from '@/components/ui/MonoLabel'
+import { tripCountdown } from '@/lib/trip-countdown'
 
 export default async function TripHubPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params
@@ -29,78 +38,161 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
     .eq('trip_id', tripId)
 
   const cardCount = cards?.length ?? 0
+  const participantCount = participants?.length ?? 0
+
+  // Editorial-tree precomputed values
+  const dateRange = `${new Date(trip.date_start).toLocaleDateString()} — ${new Date(trip.date_end).toLocaleDateString()}`
+  const countdown = tripCountdown(trip.date_start, trip.date_end)
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-md mx-auto space-y-6">
-        {/* Header */}
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <Link href="/trips" className="text-sm text-blue-600 mb-2 block">&larr; All Trips</Link>
-          <h1 className="text-2xl font-bold">{trip.title}</h1>
-          <p className="text-gray-500">{trip.destination}</p>
-          <p className="text-sm text-gray-400">
-            {new Date(trip.date_start).toLocaleDateString()} — {new Date(trip.date_end).toLocaleDateString()}
-          </p>
+    <>
+      {/* === Default tree === */}
+      <div className="theme-default-tree">
+        <div className="min-h-screen bg-gray-50 p-4">
+          <div className="max-w-md mx-auto space-y-6">
+            {/* Header */}
+            <div className="bg-white rounded-2xl shadow-sm p-6">
+              <Link href="/trips" className="text-sm text-blue-600 mb-2 block">&larr; All Trips</Link>
+              <h1 className="text-2xl font-bold">{trip.title}</h1>
+              <p className="text-gray-500">{trip.destination}</p>
+              <p className="text-sm text-gray-400">
+                {new Date(trip.date_start).toLocaleDateString()} — {new Date(trip.date_end).toLocaleDateString()}
+              </p>
 
-          {/* Participant count */}
-          <div className="flex items-center gap-2 mt-4">
-            <span className="text-sm text-gray-500">{participants?.length ?? 0} participants</span>
-          </div>
+              {/* Participant count */}
+              <div className="flex items-center gap-2 mt-4">
+                <span className="text-sm text-gray-500">{participantCount} participants</span>
+              </div>
 
-          {/* Invite link */}
-          <div className="mt-2">
-            <InviteLink inviteCode={trip.invite_code} />
-          </div>
-        </div>
+              {/* Invite link */}
+              <div className="mt-2">
+                <InviteLink inviteCode={trip.invite_code} />
+              </div>
+            </div>
 
-        {/* Timeline (prominent action) */}
-        <Link href={`/trips/${tripId}/timeline`}
-          className="block w-full text-center bg-blue-600 text-white font-semibold rounded-2xl px-4 py-4 hover:bg-blue-700 transition shadow-sm">
-          📅 View Trip Timeline
-        </Link>
+            {/* Timeline (prominent action) */}
+            <Link href={`/trips/${tripId}/timeline`}
+              className="block w-full text-center bg-blue-600 text-white font-semibold rounded-2xl px-4 py-4 hover:bg-blue-700 transition shadow-sm">
+              📅 View Trip Timeline
+            </Link>
 
-        {/* Discover */}
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <h2 className="font-semibold text-lg mb-2">Discover</h2>
-          {cardCount > 0 ? (
-            <div className="space-y-3">
-              <p className="text-gray-500 text-sm">{cardCount} cards in the deck</p>
-              <Link href={`/trips/${tripId}/swipe`}
-                className="block w-full text-center bg-blue-600 text-white font-medium rounded-lg px-4 py-3 hover:bg-blue-700 transition">
-                Start Swiping
+            {/* Discover */}
+            <div className="bg-white rounded-2xl shadow-sm p-6">
+              <h2 className="font-semibold text-lg mb-2">Discover</h2>
+              {cardCount > 0 ? (
+                <div className="space-y-3">
+                  <p className="text-gray-500 text-sm">{cardCount} cards in the deck</p>
+                  <Link href={`/trips/${tripId}/swipe`}
+                    className="block w-full text-center bg-blue-600 text-white font-medium rounded-lg px-4 py-3 hover:bg-blue-700 transition">
+                    Start Swiping
+                  </Link>
+                </div>
+              ) : (
+                <Link href={`/trips/${tripId}/generate`}
+                  className="block w-full text-center bg-green-600 text-white font-medium rounded-lg px-4 py-3 hover:bg-green-700 transition">
+                  Generate Recommendations
+                </Link>
+              )}
+            </div>
+
+            {/* Results */}
+            <div className="bg-white rounded-2xl shadow-sm p-6">
+              <h2 className="font-semibold text-lg mb-2">Group Results</h2>
+              <Link href={`/trips/${tripId}/results`}
+                className="text-blue-600 hover:underline text-sm">
+                View results &rarr;
               </Link>
             </div>
-          ) : (
-            <Link href={`/trips/${tripId}/generate`}
-              className="block w-full text-center bg-green-600 text-white font-medium rounded-lg px-4 py-3 hover:bg-green-700 transition">
-              Generate Recommendations
-            </Link>
-          )}
+
+            {/* Trip context (collapsible) with realtime updates */}
+            <TripContextSection
+              tripId={tripId}
+              currentUserId={user?.id ?? null}
+              isOrganizer={isOrganizer}
+            />
+
+            {/* Family Groups (collapsible, secondary) */}
+            <FamilyGroupManager
+              tripId={tripId}
+              isOrganizer={isOrganizer}
+              participants={participants ?? []}
+            />
+          </div>
         </div>
-
-        {/* Results */}
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <h2 className="font-semibold text-lg mb-2">Group Results</h2>
-          <Link href={`/trips/${tripId}/results`}
-            className="text-blue-600 hover:underline text-sm">
-            View results &rarr;
-          </Link>
-        </div>
-
-        {/* Trip context (collapsible) with realtime updates */}
-        <TripContextSection
-          tripId={tripId}
-          currentUserId={user?.id ?? null}
-          isOrganizer={isOrganizer}
-        />
-
-        {/* Family Groups (collapsible, secondary) */}
-        <FamilyGroupManager
-          tripId={tripId}
-          isOrganizer={isOrganizer}
-          participants={participants ?? []}
-        />
       </div>
-    </div>
+
+      {/* === Editorial tree === */}
+      <div className="theme-editorial-tree">
+        <PageShell back={{ href: '/trips', label: 'all trips' }}>
+          <PageHeader title={trip.title} />
+          <MetaStrip left={`${trip.destination} · ${dateRange}`} right={countdown} />
+          <OverviewGrid
+            stats={[
+              { label: 'participants', value: String(participantCount).padStart(2, '0') },
+              { label: 'cards in deck', value: String(cardCount).padStart(2, '0') },
+            ]}
+          />
+
+          {/* Invite link section */}
+          <section className="px-5 py-4 border-b border-stroke">
+            <MonoLabel className="block mb-2">invite</MonoLabel>
+            <InviteLink inviteCode={trip.invite_code} />
+          </section>
+
+          {/* Main actions: timeline, swipe/generate, results */}
+          <DaySection title="Explore">
+            <EventCard
+              kicker="timeline"
+              title="View trip timeline"
+              details="Flights, hotels, activities — all in one place"
+              actions={
+                <PillButton href={`/trips/${tripId}/timeline`}>view timeline</PillButton>
+              }
+            />
+            {cardCount > 0 ? (
+              <EventCard
+                kicker="discover"
+                title={`${cardCount} cards in the deck`}
+                details="Swipe through recommendations as a group"
+                actions={
+                  <PillButton href={`/trips/${tripId}/swipe`}>start swiping</PillButton>
+                }
+              />
+            ) : (
+              <EventCard
+                kicker="discover"
+                title="No cards yet"
+                details="Generate AI recommendations to get started"
+                actions={
+                  <PillButton href={`/trips/${tripId}/generate`}>generate recommendations</PillButton>
+                }
+              />
+            )}
+            <EventCard
+              kicker="results"
+              title="Group consensus"
+              details="See what everyone wants, what's mixed, and what's a hard pass"
+              actions={
+                <PillButton href={`/trips/${tripId}/results`}>view results →</PillButton>
+              }
+            />
+          </DaySection>
+
+          {/* Trip context — child renders its own dual-tree */}
+          <TripContextSection
+            tripId={tripId}
+            currentUserId={user?.id ?? null}
+            isOrganizer={isOrganizer}
+          />
+
+          {/* Family groups — child renders its own dual-tree */}
+          <FamilyGroupManager
+            tripId={tripId}
+            isOrganizer={isOrganizer}
+            participants={participants ?? []}
+          />
+        </PageShell>
+      </div>
+    </>
   )
 }
