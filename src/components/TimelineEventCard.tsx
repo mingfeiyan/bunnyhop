@@ -6,7 +6,7 @@ import { getColorClasses } from '@/lib/colors'
 import { formatTimelineEventDescription } from '@/lib/timeline-events'
 import type { TimelineEventRow } from '@/types'
 
-type Phase = 'flight' | 'check_in' | 'check_out'
+type Phase = 'flight' | 'check_in' | 'check_out' | 'activity'
 
 type Props = {
   event: TimelineEventRow
@@ -38,15 +38,18 @@ export default function TimelineEventCard({ event, phase, familyName, familyColo
   if (deleted) return null
 
   const colors = familyColor ? getColorClasses(familyColor) : null
-  const icon = phase === 'flight' ? '✈️' : '🏨'
+  const icon = phase === 'flight' ? '✈️' : phase === 'activity' ? '🎟️' : '🏨'
 
   let action: string
   if (phase === 'flight') {
     action = familyName ? `${familyName} flight` : 'Flight'
   } else if (phase === 'check_in') {
     action = familyName ? `${familyName} checks in` : 'Hotel check-in'
-  } else {
+  } else if (phase === 'check_out') {
     action = familyName ? `${familyName} checks out` : 'Hotel check-out'
+  } else {
+    // activity
+    action = familyName ? `${familyName} activity` : 'Activity'
   }
 
   // For check_out, use a simpler description since it's the same hotel

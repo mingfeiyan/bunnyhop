@@ -13,7 +13,7 @@ export type TimelineEventInsert = Omit<TimelineEventRow, 'id' | 'created_at' | '
 // Convert a Claude-parsed entry into a timeline_events row.
 // Returns null if the entry can't be converted (e.g., missing required date).
 export function parsedEntryToTimelineEvent(entry: ParsedEntry): TimelineEventInsert | null {
-  if (entry.type !== 'flight' && entry.type !== 'hotel') return null
+  if (entry.type !== 'flight' && entry.type !== 'hotel' && entry.type !== 'activity') return null
 
   const details = (entry.details && typeof entry.details === 'object')
     ? (entry.details as Record<string, unknown>)
@@ -50,25 +50,51 @@ export function parsedEntryToTimelineEvent(entry: ParsedEntry): TimelineEventIns
     }
   }
 
-  // hotel
-  const checkIn = details.check_in
-  if (!isIsoDate(checkIn)) return null
+  if (entry.type === 'hotel') {
+    const checkIn = details.check_in
+    if (!isIsoDate(checkIn)) return null
 
-  const checkOut = isIsoDate(details.check_out) ? (details.check_out as string) : null
-  const hotelName = (details.name as string) || ''
-  const title = hotelName || entry.raw_text
+    const checkOut = isIsoDate(details.check_out) ? (details.check_out as string) : null
+    const hotelName = (details.name as string) || ''
+    const title = hotelName || entry.raw_text
+
+    return {
+      trip_id: '',
+      type: 'hotel',
+      title,
+      start_date: checkIn,
+      end_date: checkOut,
+      start_time: null,
+      end_time: null,
+      origin: null,
+      destination: null,
+      reference: null,
+      details,
+      source: 'manual',
+    }
+  }
+
+  // activity
+  const date = details.date
+  if (!isIsoDate(date)) return null
+
+  const name = (details.name as string) || ''
+  const startTime = (details.start_time as string) || null
+  const endTime = (details.end_time as string) || null
+  const title = name || entry.raw_text
+  const reference = (details.confirmation as string) || null
 
   return {
     trip_id: '',
-    type: 'hotel',
+    type: 'activity',
     title,
-    start_date: checkIn,
-    end_date: checkOut,
-    start_time: null,
-    end_time: null,
+    start_date: date,
+    end_date: null,
+    start_time: startTime,
+    end_time: endTime,
     origin: null,
     destination: null,
-    reference: null,
+    reference,
     details,
     source: 'manual',
   }
@@ -96,6 +122,16 @@ export function formatTimelineEventDescription(event: TimelineEventRow): string 
     if (event.end_time) timeParts.push(`arrive ${formatTime12h(event.end_time)}`)
     const parts = [route, timeParts.join(', '), event.reference].filter(Boolean)
     return parts.join(' — ') || event.title
+  }
+
+  if (event.type === 'activity') {
+    const timeParts: string[] = []
+    if (event.start_time) timeParts.push(formatTime12h(event.start_time))
+    if (event.end_time) timeParts.push(formatTime12h(event.end_time))
+    const timeStr = timeParts.join(' – ')
+    const location = (event.details?.location as string) || ''
+    const parts = [timeStr, location, event.reference].filter(Boolean)
+    return parts.join(' — ') || ''
   }
 
   // hotel

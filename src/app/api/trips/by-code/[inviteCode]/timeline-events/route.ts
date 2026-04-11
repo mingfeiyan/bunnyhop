@@ -40,8 +40,8 @@ type IncomingEvent = {
 function validateEvent(e: unknown): { ok: true; value: IncomingEvent } | { ok: false; error: string } {
   if (!e || typeof e !== 'object') return { ok: false, error: 'event must be an object' }
   const ev = e as IncomingEvent
-  if (ev.type !== 'flight' && ev.type !== 'hotel') {
-    return { ok: false, error: 'type must be "flight" or "hotel"' }
+  if (ev.type !== 'flight' && ev.type !== 'hotel' && ev.type !== 'activity') {
+    return { ok: false, error: 'type must be "flight", "hotel", or "activity"' }
   }
   if (!ev.title || typeof ev.title !== 'string') {
     return { ok: false, error: 'title is required' }

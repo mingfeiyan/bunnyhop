@@ -72,17 +72,21 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
 
     // Expand each event into render positions:
     //   flight  -> 1 position at start_date (phase: 'flight')
-    //   hotel   -> 2 positions: check_in at start_date, check_out at end_date
+    //   hotel    -> 2 positions: check_in at start_date, check_out at end_date
+    //   activity -> 1 position at start_date
     type RenderPosition = {
       event: TimelineEventRow
       date: string
-      phase: 'flight' | 'check_in' | 'check_out'
+      phase: 'flight' | 'check_in' | 'check_out' | 'activity'
     }
     const positions: RenderPosition[] = []
     for (const ev of allEvents) {
       if (ev.type === 'flight') {
         positions.push({ event: ev, date: ev.start_date, phase: 'flight' })
+      } else if (ev.type === 'activity') {
+        positions.push({ event: ev, date: ev.start_date, phase: 'activity' })
       } else {
+        // hotel
         positions.push({ event: ev, date: ev.start_date, phase: 'check_in' })
         if (ev.end_date) {
           positions.push({ event: ev, date: ev.end_date, phase: 'check_out' })
@@ -90,12 +94,13 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
       }
     }
 
-    // Sort by date, then phase (check_out morning → flight → check_in afternoon),
+    // Sort by date, then phase (check_out morning → flight → activity → check_in afternoon),
     // then start_time as a tiebreaker for same-phase same-date events.
     const PHASE_ORDER: Record<RenderPosition['phase'], number> = {
       check_out: 0,
       flight: 1,
-      check_in: 2,
+      activity: 2,
+      check_in: 3,
     }
     positions.sort((a, b) => {
       const dateCmp = a.date.localeCompare(b.date)

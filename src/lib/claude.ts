@@ -5,7 +5,7 @@ const anthropic = new Anthropic({
 })
 
 export type ParsedEntry = {
-  type: 'flight' | 'hotel' | 'constraint' | 'note'
+  type: 'flight' | 'hotel' | 'activity' | 'constraint' | 'note'
   raw_text: string
   details: Record<string, unknown>
 }
@@ -27,7 +27,7 @@ The input may contain ONE booking or MANY mixed together. Identify each distinct
 Return format (always an array, even for a single item):
 [
   {
-    "type": "flight" | "hotel" | "constraint" | "note",
+    "type": "flight" | "hotel" | "activity" | "constraint" | "note",
     "raw_text": "concise human-readable summary of THIS specific item",
     "details": { ... extracted structured fields ... }
   }
@@ -37,8 +37,8 @@ Rules:
 - Round-trip flights = TWO entries (one outbound, one return).
 - Each flight: type="flight", details has airline, flight_number, departure_time, arrival_time, date (YYYY-MM-DD), origin, destination.
 - Each hotel: type="hotel", details has name, address, check_in (YYYY-MM-DD), check_out (YYYY-MM-DD).
-- Constraints: type="constraint", details has a description.
-- Anything else: type="note", details has a "summary" field.
+- Each CONFIRMED activity booking (e.g. scheduled tour, dinner reservation, spa appointment, museum tickets with a date — anything that has been booked and has a specific date): type="activity", details has name, date (YYYY-MM-DD), start_time, end_time, location, organizer, confirmation. ONLY use "activity" if the booking is real and has a date — not for vague wishes like "we want to go snorkeling".
+- Constraints/preferences/wishes/general info that aren't bookings: type="constraint" if it's a rule/limitation (e.g. "no water activities", "kid is afraid of heights", "vegetarian"), or type="note" for everything else (e.g. "traveling with husband and 2 kids"). Both have details with a "summary" or "description" field.
 - The "raw_text" field should be a SHORT summary of just THIS item (e.g. "United UA115 SFO→PPT, Jun 27 2026"), not the full input.
 - Only include items that look like real bookings or trip facts. Skip generic notes like "suggestions welcome".
 

@@ -1,9 +1,37 @@
 import Anthropic from '@anthropic-ai/sdk'
-import type { TripContext } from '@/types'
+import type { TripContext, TimelineEventRow } from '@/types'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
+
+// Convert HH:MM 24-hour to a friendly 12-hour string for the prompt
+function fmtTime(t: string | null): string {
+  if (!t) return ''
+  const m = t.match(/^(\d{1,2}):(\d{2})$/)
+  if (!m) return t
+  const h = Number(m[1])
+  const period = h >= 12 ? 'PM' : 'AM'
+  const hour12 = h % 12 || 12
+  return `${hour12}:${m[2]} ${period}`
+}
+
+// Build a single-line summary of a timeline_events row for the prompt
+function summarizeTimelineEvent(ev: TimelineEventRow): string {
+  if (ev.type === 'flight') {
+    const route = ev.origin && ev.destination ? `${ev.origin} → ${ev.destination}` : ''
+    const time = ev.start_time ? ` at ${fmtTime(ev.start_time)}` : ''
+    return `[flight] ${ev.start_date}${time} — ${ev.title}${route ? ` (${route})` : ''}`
+  }
+  if (ev.type === 'hotel') {
+    const range = ev.end_date ? `${ev.start_date} → ${ev.end_date}` : ev.start_date
+    const address = (ev.details?.address as string) || ''
+    return `[hotel] ${range} — ${ev.title}${address ? ` (${address})` : ''}`
+  }
+  // activity
+  const time = ev.start_time ? ` at ${fmtTime(ev.start_time)}` : ''
+  return `[activity] ${ev.start_date}${time} — ${ev.title}`
+}
 
 type GeneratedCard = {
   title: string
@@ -28,10 +56,15 @@ export async function generateCards(
   dateStart: string,
   dateEnd: string,
   contexts: TripContext[],
+  timelineEvents: TimelineEventRow[] = [],
   existingTitles: string[] = []
 ): Promise<GeneratedCard[]> {
   const contextSummary = contexts
     .map(c => `[${c.type}] ${c.raw_text}`)
+    .join('\n')
+
+  const timelineSummary = timelineEvents
+    .map(summarizeTimelineEvent)
     .join('\n')
 
   const existingList = existingTitles.length > 0
@@ -47,7 +80,8 @@ export async function generateCards(
 
 Destination: ${destination}
 Dates: ${dateStart} to ${dateEnd}
-${contextSummary ? `\nTrip context:\n${contextSummary}` : ''}
+${timelineSummary ? `\nConfirmed bookings (use these to anchor recommendations — suggest things near the hotels, schedule around flights and existing activities, and don't double-book the same time slots):\n${timelineSummary}` : ''}
+${contextSummary ? `\nTraveler notes & constraints:\n${contextSummary}` : ''}
 ${existingList}
 
 Return a JSON array (no markdown, no code fences) of recommendations. Mix of restaurants (8-10), activities (8-10), and sightseeing (4-6).
@@ -68,7 +102,12 @@ Each item:
   }
 }
 
-Make taglines engaging and personality-filled. Use the trip context to personalize recommendations.`
+Make taglines engaging and personality-filled. Use the trip context AND the confirmed bookings to personalize recommendations:
+- If there are hotels listed, suggest restaurants and activities NEAR each hotel (mention proximity in why_this when relevant).
+- If the trip spans multiple cities/islands, balance recommendations across the locations the travelers will actually visit.
+- Avoid suggesting things that conflict with confirmed activity bookings (don't recommend a sunset cruise if they already have one booked).
+- Honor traveler constraints strictly (e.g. "no water activities", "kid-friendly only", "vegetarian").
+- Tailor the why_this field to reflect the specific group composition and preferences mentioned in the notes.`
     }],
   })
 

@@ -38,11 +38,19 @@ export async function POST(
     return NextResponse.json({ error: 'Trip not found' }, { status: 404 })
   }
 
-  // Get existing context
+  // Get existing context (constraints, notes, etc.)
   const { data: contexts } = await supabase
     .from('trip_context')
     .select('*')
     .eq('trip_id', tripId)
+
+  // Get confirmed timeline events (flights, hotels, activities) so the
+  // generator can suggest things near the hotels and around the schedule.
+  const { data: timelineEvents } = await supabase
+    .from('timeline_events')
+    .select('*')
+    .eq('trip_id', tripId)
+    .order('start_date', { ascending: true })
 
   // Get existing card titles to avoid duplicates
   const { data: existingCards } = await supabase
@@ -60,6 +68,7 @@ export async function POST(
       trip.date_start,
       trip.date_end,
       contexts ?? [],
+      timelineEvents ?? [],
       existingTitles
     )
   } catch (err) {
