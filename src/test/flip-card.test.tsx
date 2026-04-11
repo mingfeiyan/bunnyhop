@@ -22,15 +22,19 @@ const mockCard = {
 }
 
 describe('FlipCard', () => {
+  // Note: FlipCard renders BOTH a default-tree and an editorial-tree
+  // wrapper (gated by the .theme-editorial class on <html>). In JSDOM
+  // both trees render to DOM, so text-content assertions need
+  // getAllByText. Visibility is enforced by CSS at runtime.
   it('renders the card front with title and tagline', () => {
     render(<FlipCard card={mockCard} destination="Bora Bora" />)
     expect(screen.getAllByText('Matiras Beach').length).toBeGreaterThan(0)
-    expect(screen.getByText('The best beach you will ever see')).toBeInTheDocument()
+    expect(screen.getAllByText('The best beach you will ever see').length).toBeGreaterThan(0)
   })
 
   it('shows the back with details after clicking', () => {
     render(<FlipCard card={mockCard} destination="Bora Bora" />)
     fireEvent.click(screen.getAllByText('Matiras Beach')[0])
-    expect(screen.getByText(/Perfect for families/)).toBeInTheDocument()
+    expect(screen.getAllByText(/Perfect for families/).length).toBeGreaterThan(0)
   })
 })

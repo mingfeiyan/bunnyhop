@@ -6,6 +6,10 @@ import { createClient } from '@/lib/supabase/client'
 import SwipeDeck from '@/components/SwipeDeck'
 import SwipeReview from '@/components/SwipeReview'
 import AddCardModal from '@/components/AddCardModal'
+import PageShell from '@/components/ui/PageShell'
+import PageHeader from '@/components/ui/PageHeader'
+import PillButton from '@/components/ui/PillButton'
+import MonoLabel from '@/components/ui/MonoLabel'
 import type { Card, Swipe } from '@/types'
 
 export default function SwipePage() {
@@ -54,6 +58,12 @@ export default function SwipePage() {
   }, [tripId, supabase])
 
   useEffect(() => {
+    // loadCards bulk-updates several pieces of state on initial mount and on
+    // refetch (after AddCardModal saves a new card). The cascading-renders
+    // lint warning is overly conservative here — there's no way to avoid
+    // multiple setX calls in a single load and we want them batched, which
+    // React 19 already does for us.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadCards()
   }, [loadCards])
 
@@ -67,9 +77,18 @@ export default function SwipePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-400">Loading cards...</p>
-      </div>
+      <>
+        <div className="theme-default-tree">
+          <div className="min-h-screen flex items-center justify-center">
+            <p className="text-gray-400">Loading cards...</p>
+          </div>
+        </div>
+        <div className="theme-editorial-tree">
+          <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--cream)' }}>
+            <p className="label-mono">loading cards…</p>
+          </div>
+        </div>
+      </>
     )
   }
 
@@ -83,62 +102,161 @@ export default function SwipePage() {
   const effectiveMode: 'swipe' | 'review' = allSwiped ? 'review' : mode
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 pb-24">
-      <div className="max-w-sm mx-auto">
-        <button onClick={() => router.push(`/trips/${tripId}`)}
-          className="text-sm text-blue-600 mb-4 block">&larr; Back to trip</button>
+    <>
+      {/* === Default tree === */}
+      <div className="theme-default-tree">
+        <div className="min-h-screen bg-gray-50 p-4 pb-24">
+          <div className="max-w-sm mx-auto">
+            <button onClick={() => router.push(`/trips/${tripId}`)}
+              className="text-sm text-blue-600 mb-4 block">&larr; Back to trip</button>
 
-        {/* Mode toggle — show only when the user has at least one vote and there are still cards to swipe */}
-        {hasAnyVote && !allSwiped && (
-          <div className="flex gap-2 mb-4 bg-white rounded-full p-1 shadow-sm">
-            <button
-              onClick={() => setMode('swipe')}
-              className={`flex-1 text-xs font-medium py-2 rounded-full transition ${
-                effectiveMode === 'swipe' ? 'bg-blue-600 text-white' : 'text-gray-600'
-              }`}
-            >
-              Swipe ({unswipedCards.length} left)
-            </button>
-            <button
-              onClick={() => setMode('review')}
-              className={`flex-1 text-xs font-medium py-2 rounded-full transition ${
-                effectiveMode === 'review' ? 'bg-blue-600 text-white' : 'text-gray-600'
-              }`}
-            >
-              Review ({votedCount})
-            </button>
-          </div>
-        )}
-
-        {effectiveMode === 'swipe' && !allSwiped && (
-          <SwipeDeck cards={unswipedCards} destination={destination} onSwipe={handleSwipe} />
-        )}
-
-        {effectiveMode === 'review' && currentUserId && (
-          <div>
-            {allSwiped && (
-              <div className="text-center mb-4">
-                <p className="text-2xl font-bold">All done! 🎉</p>
-                <p className="text-sm text-gray-500">Review your votes below. Tap any card to change your mind.</p>
+            {/* Mode toggle — show only when the user has at least one vote and there are still cards to swipe */}
+            {hasAnyVote && !allSwiped && (
+              <div className="flex gap-2 mb-4 bg-white rounded-full p-1 shadow-sm">
+                <button
+                  onClick={() => setMode('swipe')}
+                  className={`flex-1 text-xs font-medium py-2 rounded-full transition ${
+                    effectiveMode === 'swipe' ? 'bg-blue-600 text-white' : 'text-gray-600'
+                  }`}
+                >
+                  Swipe ({unswipedCards.length} left)
+                </button>
+                <button
+                  onClick={() => setMode('review')}
+                  className={`flex-1 text-xs font-medium py-2 rounded-full transition ${
+                    effectiveMode === 'review' ? 'bg-blue-600 text-white' : 'text-gray-600'
+                  }`}
+                >
+                  Review ({votedCount})
+                </button>
               </div>
             )}
-            <SwipeReview
-              cards={allCards}
-              votes={votes}
-              currentUserId={currentUserId}
-              destination={destination}
-              onVoteChange={(cardId, preference) => {
-                setVotes(prev => ({ ...prev, [cardId]: preference }))
-              }}
-            />
+
+            {effectiveMode === 'swipe' && !allSwiped && (
+              <SwipeDeck cards={unswipedCards} destination={destination} onSwipe={handleSwipe} />
+            )}
+
+            {effectiveMode === 'review' && currentUserId && (
+              <div>
+                {allSwiped && (
+                  <div className="text-center mb-4">
+                    <p className="text-2xl font-bold">All done! 🎉</p>
+                    <p className="text-sm text-gray-500">Review your votes below. Tap any card to change your mind.</p>
+                  </div>
+                )}
+                <SwipeReview
+                  cards={allCards}
+                  votes={votes}
+                  currentUserId={currentUserId}
+                  destination={destination}
+                  onVoteChange={(cardId, preference) => {
+                    setVotes(prev => ({ ...prev, [cardId]: preference }))
+                  }}
+                />
+              </div>
+            )}
           </div>
-        )}
+
+          <button onClick={() => setShowAddCard(true)}
+            className="fixed bottom-6 right-6 bg-blue-600 text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center text-2xl hover:bg-blue-700 transition">
+            +
+          </button>
+        </div>
       </div>
 
-      <button onClick={() => setShowAddCard(true)}
-        className="fixed bottom-6 right-6 bg-blue-600 text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center text-2xl hover:bg-blue-700 transition">
-        +
-      </button>
+      {/* === Editorial tree === */}
+      <div className="theme-editorial-tree">
+        <PageShell back={{ href: `/trips/${tripId}`, label: 'back to trip' }} maxWidth="sm">
+          <PageHeader kicker="swipe deck" title={destination} />
+
+          {/* Mode toggle — only when there's at least one vote AND cards remain */}
+          {hasAnyVote && !allSwiped && (
+            <div className="flex gap-2 px-5 mb-4">
+              <PillButton
+                variant={effectiveMode === 'swipe' ? 'active' : 'default'}
+                onClick={() => setMode('swipe')}
+              >
+                swipe · {unswipedCards.length} left
+              </PillButton>
+              <PillButton
+                variant={effectiveMode === 'review' ? 'active' : 'default'}
+                onClick={() => setMode('review')}
+              >
+                review · {votedCount}
+              </PillButton>
+            </div>
+          )}
+
+          <div className="px-5 pb-24">
+            {effectiveMode === 'swipe' && !allSwiped && (
+              <SwipeDeck cards={unswipedCards} destination={destination} onSwipe={handleSwipe} />
+            )}
+
+            {effectiveMode === 'review' && currentUserId && (
+              <div>
+                {allSwiped && (
+                  <div className="text-center my-6">
+                    <MonoLabel className="block mb-2">all done</MonoLabel>
+                    <p
+                      style={{
+                        fontFamily: 'var(--font-serif)',
+                        fontSize: '28px',
+                        fontWeight: 400,
+                        margin: 0,
+                        letterSpacing: '-0.01em',
+                      }}
+                    >
+                      Every card swiped
+                    </p>
+                    <p
+                      className="detail-mono mt-2"
+                      style={{ opacity: 0.8 }}
+                    >
+                      Tap any card to change your mind.
+                    </p>
+                  </div>
+                )}
+                <SwipeReview
+                  cards={allCards}
+                  votes={votes}
+                  currentUserId={currentUserId}
+                  destination={destination}
+                  onVoteChange={(cardId, preference) => {
+                    setVotes(prev => ({ ...prev, [cardId]: preference }))
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Floating add button — hairline circle with serif "+" */}
+          <button
+            type="button"
+            onClick={() => setShowAddCard(true)}
+            aria-label="add card"
+            style={{
+              position: 'fixed',
+              bottom: '24px',
+              right: '24px',
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              border: '1px solid var(--stroke)',
+              background: 'var(--cream)',
+              fontFamily: 'var(--font-serif)',
+              fontSize: '28px',
+              color: 'var(--stroke)',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(51,61,41,0.12)',
+              zIndex: 50,
+            }}
+          >
+            +
+          </button>
+        </PageShell>
+      </div>
+
+      {/* Modal renders its own dual-tree internally */}
       {showAddCard && (
         <AddCardModal
           tripId={tripId}
@@ -146,6 +264,6 @@ export default function SwipePage() {
           onAdded={() => { loadCards() }}
         />
       )}
-    </div>
+    </>
   )
 }
