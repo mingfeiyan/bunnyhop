@@ -1,26 +1,114 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surface */
+  --cream: #F0F0EC;
+  --stroke: #333D29;
+  --stroke-soft: rgba(51, 61, 41, 0.08);
+
+  /* Family palette — low-saturation, distinct hues */
+  --family-indigo: #6B7B9E;
+  --family-amber: #A89674;
+  --family-emerald: #7A9080;
+  --family-rose: #A88080;
+  --family-sky: #7B8B9C;
+  --family-purple: #8B7B9B;
+
+  /* Consensus tints — muted variants */
+  --consensus-loved: #8FA188;
+  --consensus-mixed: #B89E72;
+  --consensus-pass: #B07878;
+
+  --safe-area-bottom: env(safe-area-inset-bottom);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-cream: var(--cream);
+  --color-stroke: var(--stroke);
+  --color-stroke-soft: var(--stroke-soft);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-family-indigo: var(--family-indigo);
+  --color-family-amber: var(--family-amber);
+  --color-family-emerald: var(--family-emerald);
+  --color-family-rose: var(--family-rose);
+  --color-family-sky: var(--family-sky);
+  --color-family-purple: var(--family-purple);
+
+  --color-consensus-loved: var(--consensus-loved);
+  --color-consensus-mixed: var(--consensus-mixed);
+  --color-consensus-pass: var(--consensus-pass);
+
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--cream);
+  color: var(--stroke);
+  font-family: var(--font-serif), Georgia, serif;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
 }
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Editorial primitives — used pervasively across the app */
+
+.label-mono {
+  font-family: var(--font-mono), 'SFMono-Regular', monospace;
+  font-size: 10px;
+  text-transform: lowercase;
+  letter-spacing: 0.05em;
+  display: inline-block;
+}
+
+.detail-mono {
+  font-family: var(--font-mono), 'SFMono-Regular', monospace;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.hairline-h {
+  width: 100%;
+  height: 1px;
+  background: var(--stroke);
+}
+
+.hairline-v {
+  width: 1px;
+  background: var(--stroke);
+}
+
+/* Pill button — outlined editorial pill, the only button style in the app.
+   Three states: rest (transparent), hover (soft fill, desktop), active/click
+   (full inversion). variant="active" forces the inverted state. */
+.pill-btn {
+  display: inline-block;
+  border: 1px solid var(--stroke);
+  border-radius: 100px;
+  font-family: var(--font-mono), 'SFMono-Regular', monospace;
+  text-decoration: none;
+  color: var(--stroke);
+  background: transparent;
+  transition: background 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+  text-align: center;
+  line-height: 1.4;
+}
+.pill-btn:hover {
+  background: var(--stroke-soft);
+}
+.pill-btn:active,
+.pill-btn[data-active="true"] {
+  background: var(--stroke);
+  color: var(--cream);
+}
+.pill-btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: transparent;
+}
+.pill-btn-sm { font-size: 11px; padding: 6px 20px; }
+.pill-btn-md { font-size: 12px; padding: 8px 24px; }
