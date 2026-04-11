@@ -12,6 +12,7 @@
 // they don't poison the calling endpoint.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { generateAndStoreCover } from '@/lib/trip-cover'
 
 type TripRow = {
   id: string
@@ -188,20 +189,23 @@ export async function autofillTripFromEvents(
   }
 }
 
-// Helper to fire-and-forget the cover image generation when destination just
-// transitioned from null → set. Safe to call after autofillTripFromEvents:
-// idempotent on the cover side too (the route returns the cached URL if
-// cover_image_url is already populated).
-//
-// `origin` is needed because the helper is called from server routes where
-// there's no window.location — pass the request URL's origin.
-export function fireCoverGenerationIfNeeded(
-  origin: string,
+// Generate the cover image when destination just transitioned from null →
+// set. Calls the trip-cover library directly (no loopback HTTP hop). Safe
+// to await; the call is idempotent (short-circuits if cover_image_url is
+// already populated). Errors are logged and swallowed — best-effort.
+export async function generateCoverIfNeeded(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>,
   tripId: string,
   result: AutofillResult
-): void {
+): Promise<void> {
   if (!result.destinationJustSet) return
-  fetch(`${origin}/api/trips/${tripId}/generate-cover`, { method: 'POST' }).catch(err => {
-    console.error('[autofill] cover gen kickoff failed:', err)
-  })
+  try {
+    const coverResult = await generateAndStoreCover(supabase, tripId)
+    if (!coverResult.ok) {
+      console.error('[autofill] cover gen failed:', coverResult.error)
+    }
+  } catch (err) {
+    console.error('[autofill] cover gen unexpected:', err)
+  }
 }

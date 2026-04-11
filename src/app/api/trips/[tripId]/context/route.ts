@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { parseContext } from '@/lib/claude'
 import { parsedEntryToTimelineEvent } from '@/lib/timeline-events'
-import { autofillTripFromEvents, fireCoverGenerationIfNeeded } from '@/lib/trip-autofill'
+import { autofillTripFromEvents, generateCoverIfNeeded } from '@/lib/trip-autofill'
 import { NextResponse } from 'next/server'
 
 export async function POST(
@@ -10,7 +10,6 @@ export async function POST(
 ) {
   const { tripId } = await params
   const supabase = await createClient()
-  const origin = new URL(request.url).origin
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
@@ -82,7 +81,7 @@ export async function POST(
     // we just inserted plus any pre-existing ones. Helper is idempotent and
     // only fills nulls. Best-effort — errors are logged inside the helper.
     const result = await autofillTripFromEvents(supabase, tripId)
-    fireCoverGenerationIfNeeded(origin, tripId, result)
+    await generateCoverIfNeeded(supabase, tripId, result)
   }
 
   if (contextRows.length > 0) {

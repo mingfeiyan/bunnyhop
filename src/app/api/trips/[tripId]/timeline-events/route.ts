@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { autofillTripFromEvents, fireCoverGenerationIfNeeded } from '@/lib/trip-autofill'
+import { autofillTripFromEvents, generateCoverIfNeeded } from '@/lib/trip-autofill'
 import { NextResponse } from 'next/server'
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -49,7 +49,6 @@ export async function POST(
 ) {
   const { tripId } = await params
   const supabase = await createClient()
-  const origin = new URL(request.url).origin
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
@@ -110,7 +109,7 @@ export async function POST(
 
   // Backfill missing trip metadata from the inserted events. Idempotent.
   const result = await autofillTripFromEvents(supabase, tripId)
-  fireCoverGenerationIfNeeded(origin, tripId, result)
+  await generateCoverIfNeeded(supabase, tripId, result)
 
   return NextResponse.json(data)
 }
