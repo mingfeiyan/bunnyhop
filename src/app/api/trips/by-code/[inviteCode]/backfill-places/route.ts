@@ -36,7 +36,7 @@ export async function POST(
 
   const { data: trip, error: tripError } = await supabase
     .from('trips')
-    .select('id')
+    .select('id, destination')
     .eq('invite_code', inviteCode)
     .single()
   if (tripError || !trip) {
@@ -52,14 +52,21 @@ export async function POST(
   }
 
   type CardRow = { id: string; title: string; metadata: Record<string, unknown> | null }
+  // Backfill any card that doesn't yet have a google_place_id, regardless of whether
+  // photo_search_query is present. The query is constructed from title + destination
+  // because the existing photo_search_query strings are descriptive prompts not
+  // suitable for Google Places Find Place from Text.
   const needsBackfill = ((cards ?? []) as CardRow[]).filter(c => {
     const m = (c.metadata ?? {}) as Record<string, unknown>
-    return Boolean(m.photo_search_query) && !m.google_place_id
+    return !m.google_place_id
   })
+
+  const destination = (trip.destination as string) ?? ''
 
   type Result = {
     id: string
     title: string
+    query: string
     status: 'ok' | 'no_places_data' | 'error'
     rating?: number | null
     rating_count?: number | null
@@ -69,11 +76,11 @@ export async function POST(
   const results: Result[] = await Promise.all(
     needsBackfill.map(async (card): Promise<Result> => {
       const m = (card.metadata ?? {}) as Record<string, unknown>
-      const query = m.photo_search_query as string
+      const query = `${card.title} ${destination}`.trim()
       try {
         const place = await searchPlace(query)
         if (place.place_id === null && place.rating === null && place.rating_count === null) {
-          return { id: card.id, title: card.title, status: 'no_places_data' }
+          return { id: card.id, title: card.title, query, status: 'no_places_data' }
         }
         const patch: Record<string, unknown> = { ...m }
         if (place.place_id !== null) patch.google_place_id = place.place_id
@@ -85,11 +92,12 @@ export async function POST(
           .update({ metadata: patch })
           .eq('id', card.id)
         if (updateError) {
-          return { id: card.id, title: card.title, status: 'error', error: updateError.message }
+          return { id: card.id, title: card.title, query, status: 'error', error: updateError.message }
         }
         return {
           id: card.id,
           title: card.title,
+          query,
           status: 'ok',
           rating: place.rating,
           rating_count: place.rating_count,
@@ -98,6 +106,7 @@ export async function POST(
         return {
           id: card.id,
           title: card.title,
+          query,
           status: 'error',
           error: err instanceof Error ? err.message : String(err),
         }
@@ -106,6 +115,7 @@ export async function POST(
   )
 
   return NextResponse.json({
+    has_places_api_key: Boolean(process.env.GOOGLE_PLACES_API_KEY),
     total_cards: cards?.length ?? 0,
     needs_backfill: needsBackfill.length,
     updated: results.filter(r => r.status === 'ok').length,
