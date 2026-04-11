@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getColorClasses } from '@/lib/colors'
-import { formatTimelineEventDescription } from '@/lib/timeline-events'
+import { getColorClasses, getFamilyColor } from '@/lib/colors'
+import { formatTimelineEventDescription, formatTime12h } from '@/lib/timeline-events'
+import EventCard from '@/components/ui/EventCard'
 import type { TimelineEventRow } from '@/types'
 
 type Phase = 'flight' | 'check_in' | 'check_out' | 'activity'
@@ -43,27 +44,33 @@ export default function TimelineEventCard({ event, phase, familyName, familyColo
   // phase forces an explicit branch.
   let icon: string
   let action: string
+  let kicker: string
   switch (phase) {
     case 'flight':
       icon = '✈️'
       action = familyName ? `${familyName} flight` : 'Flight'
+      kicker = 'flight'
       break
     case 'check_in':
       icon = '🏨'
       action = familyName ? `${familyName} checks in` : 'Hotel check-in'
+      kicker = 'hotel · check-in'
       break
     case 'check_out':
       icon = '🏨'
       action = familyName ? `${familyName} checks out` : 'Hotel check-out'
+      kicker = 'hotel · check-out'
       break
     case 'activity':
       icon = '🎟️'
       action = familyName ? `${familyName} activity` : 'Activity'
+      kicker = 'activity'
       break
     default: {
       const _exhaustive: never = phase
       icon = '📍'
       action = _exhaustive
+      kicker = ''
     }
   }
 
@@ -72,27 +79,74 @@ export default function TimelineEventCard({ event, phase, familyName, familyColo
     ? null
     : formatTimelineEventDescription(event)
 
+  // Editorial: time string for the 60px column
+  let editorialTime = ''
+  if (phase === 'flight') {
+    editorialTime = event.start_time ? formatTime12h(event.start_time) : ''
+  } else if (phase === 'activity') {
+    editorialTime = event.start_time ? formatTime12h(event.start_time) : ''
+  }
+  // hotel check_in / check_out: no time
+
+  const editorialAccent = familyColor ? getFamilyColor(familyColor) : null
+  const editorialDetails: string[] = []
+  if (familyName) editorialDetails.push(familyName)
+  if (description) editorialDetails.push(description)
+
   return (
-    <div className={`bg-white rounded-xl p-3 shadow-sm ${colors ? `border-l-4 ${colors.border}` : ''}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-base">{icon}</span>
-            <span className="font-semibold text-sm">{action}</span>
+    <>
+      {/* === Default tree === */}
+      <div className="theme-default-tree">
+        <div className={`bg-white rounded-xl p-3 shadow-sm ${colors ? `border-l-4 ${colors.border}` : ''}`}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-base">{icon}</span>
+                <span className="font-semibold text-sm">{action}</span>
+              </div>
+              <p className="text-sm text-gray-700">{event.title}</p>
+              {description && <p className="text-xs text-gray-500 mt-0.5">{description}</p>}
+            </div>
+            {canDelete && (
+              <button
+                onClick={handleDelete}
+                className="text-xs text-red-400 hover:text-red-600 shrink-0"
+              >
+                Delete
+              </button>
+            )}
           </div>
-          <p className="text-sm text-gray-700">{event.title}</p>
-          {description && <p className="text-xs text-gray-500 mt-0.5">{description}</p>}
+          {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
         </div>
-        {canDelete && (
-          <button
-            onClick={handleDelete}
-            className="text-xs text-red-400 hover:text-red-600 shrink-0"
-          >
-            Delete
-          </button>
+      </div>
+
+      {/* === Editorial tree === */}
+      <div className="theme-editorial-tree">
+        <EventCard
+          time={editorialTime}
+          kicker={kicker}
+          title={event.title}
+          details={editorialDetails.length > 0 ? editorialDetails.join(' · ') : null}
+          accentColor={editorialAccent}
+          trailing={
+            canDelete ? (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="label-mono"
+                style={{ color: 'var(--stroke)', opacity: 0.5, background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                del
+              </button>
+            ) : null
+          }
+        />
+        {error && (
+          <div className="px-5 detail-mono" style={{ color: 'var(--consensus-pass)' }}>
+            {error}
+          </div>
         )}
       </div>
-      {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
-    </div>
+    </>
   )
 }
