@@ -1,9 +1,9 @@
 export type Trip = {
   id: string
   title: string
-  destination: string
-  date_start: string
-  date_end: string
+  destination: string | null
+  date_start: string | null
+  date_end: string | null
   created_by: string
   invite_code: string
   timezone: string | null

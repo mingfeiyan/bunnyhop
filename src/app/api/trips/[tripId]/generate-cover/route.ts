@@ -37,6 +37,17 @@ export async function POST(
     })
   }
 
+  // Trips with no destination yet (created via the optional-fields flow)
+  // can't be turned into a Gemini prompt. Skip silently — the route gets
+  // re-fired by autofillTripFromEvents the moment a hotel/flight populates
+  // destination, so the cover lands later automatically.
+  if (!trip.destination) {
+    return NextResponse.json({
+      cover_image_url: null,
+      skipped: 'no destination yet',
+    })
+  }
+
   // Generate via Gemini Imagen
   let image
   try {

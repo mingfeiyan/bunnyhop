@@ -38,6 +38,15 @@ export async function POST(
     return NextResponse.json({ error: 'Trip not found' }, { status: 404 })
   }
 
+  // Card generation needs a destination to seed Claude. Trips created via the
+  // optional-fields flow may not have one until they add a hotel/flight.
+  if (!trip.destination) {
+    return NextResponse.json(
+      { error: 'Set the trip destination first (or add a hotel/flight to auto-fill it).', count: 0 },
+      { status: 400 }
+    )
+  }
+
   // The three follow-up reads are independent of each other — fan them out.
   // contexts = constraints/notes; timelineEvents = confirmed flights, hotels,
   // activities (so the generator can suggest things near the hotels and around

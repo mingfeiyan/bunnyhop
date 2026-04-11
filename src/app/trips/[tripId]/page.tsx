@@ -4,6 +4,7 @@ import Link from 'next/link'
 import TripContextSection from '@/components/TripContextSection'
 import InviteLink from '@/components/InviteLink'
 import FamilyGroupManager from '@/components/FamilyGroupManager'
+import EditTripDetailsButton from '@/components/EditTripDetailsButton'
 import PageShell from '@/components/ui/PageShell'
 import PageHeader from '@/components/ui/PageHeader'
 import MetaStrip from '@/components/ui/MetaStrip'
@@ -40,9 +41,16 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
   const cardCount = cards?.length ?? 0
   const participantCount = participants?.length ?? 0
 
-  // Editorial-tree precomputed values
-  const dateRange = `${new Date(trip.date_start).toLocaleDateString()} — ${new Date(trip.date_end).toLocaleDateString()}`
+  // Trip metadata may be null if the user created the trip with only a title.
+  // Auto-fill kicks in once they add a hotel/flight via context. Until then,
+  // we render placeholder strings instead of crashing on new Date(null).
+  const hasDates = Boolean(trip.date_start && trip.date_end)
+  const dateRange = hasDates
+    ? `${new Date(trip.date_start).toLocaleDateString()} — ${new Date(trip.date_end).toLocaleDateString()}`
+    : null
   const countdown = tripCountdown(trip.date_start, trip.date_end)
+  const destinationDisplay = trip.destination ?? null
+  const metaLeft = [destinationDisplay, dateRange].filter(Boolean).join(' · ') || 'add bookings to fill in details'
 
   return (
     <>
@@ -54,9 +62,11 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
             <div className="bg-white rounded-2xl shadow-sm p-6">
               <Link href="/trips" className="text-sm text-blue-600 mb-2 block">&larr; All Trips</Link>
               <h1 className="text-2xl font-bold">{trip.title}</h1>
-              <p className="text-gray-500">{trip.destination}</p>
+              <p className="text-gray-500">{trip.destination ?? 'Destination not set'}</p>
               <p className="text-sm text-gray-400">
-                {new Date(trip.date_start).toLocaleDateString()} — {new Date(trip.date_end).toLocaleDateString()}
+                {hasDates
+                  ? `${new Date(trip.date_start).toLocaleDateString()} — ${new Date(trip.date_end).toLocaleDateString()}`
+                  : 'Dates not set'}
               </p>
 
               {/* Participant count */}
@@ -68,6 +78,9 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
               <div className="mt-2">
                 <InviteLink inviteCode={trip.invite_code} />
               </div>
+
+              {/* Edit trip details — organizer only */}
+              <EditTripDetailsButton trip={trip} isOrganizer={isOrganizer} />
             </div>
 
             {/* Timeline (prominent action) */}
@@ -125,13 +138,20 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
       <div className="theme-editorial-tree">
         <PageShell back={{ href: '/trips', label: 'all trips' }}>
           <PageHeader title={trip.title} />
-          <MetaStrip left={`${trip.destination} · ${dateRange}`} right={countdown} />
+          <MetaStrip left={metaLeft} right={countdown ?? undefined} />
           <OverviewGrid
             stats={[
               { label: 'participants', value: String(participantCount).padStart(2, '0') },
               { label: 'cards in deck', value: String(cardCount).padStart(2, '0') },
             ]}
           />
+
+          {/* Edit trip details — organizer-only PillButton next to the meta strip */}
+          {isOrganizer && (
+            <div className="px-5 pb-3">
+              <EditTripDetailsButton trip={trip} isOrganizer={isOrganizer} />
+            </div>
+          )}
 
           {/* Invite link section */}
           <section className="px-5 py-4 border-b border-stroke">

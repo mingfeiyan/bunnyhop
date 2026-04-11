@@ -21,9 +21,12 @@ export default function NewTripPage() {
 
     const formData = new FormData(e.currentTarget)
     const title = formData.get('title') as string
-    const destination = formData.get('destination') as string
-    const dateStart = formData.get('date_start') as string
-    const dateEnd = formData.get('date_end') as string
+    // Everything except title is optional. Empty strings → null so the DB
+    // stores nothing rather than an empty string. Auto-fill takes over when
+    // the user adds bookings via the trip context form (or an agent).
+    const destination = (formData.get('destination') as string) || null
+    const dateStart = (formData.get('date_start') as string) || null
+    const dateEnd = (formData.get('date_end') as string) || null
     const timezone = (formData.get('timezone') as string) || null
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -47,13 +50,14 @@ export default function NewTripPage() {
       .from('trip_participants')
       .insert({ trip_id: trip.id, user_id: user.id, role: 'organizer' })
 
-    // Fire-and-forget Gemini cover image generation. Takes ~5-10s on the
-    // server; we don't await — the user is redirected to the trip hub
-    // immediately and the cover appears on /trips next time they look.
-    // Errors are logged server-side; the user never sees them.
-    fetch(`/api/trips/${trip.id}/generate-cover`, { method: 'POST' }).catch(() => {
-      // Cover generation is best-effort; never block trip creation on it.
-    })
+    // If the user filled in destination at creation, kick off cover gen now.
+    // Otherwise it'll fire from autofillTripFromEvents the moment the first
+    // hotel/flight is added (or from the EditTripDetailsModal save handler).
+    if (destination) {
+      fetch(`/api/trips/${trip.id}/generate-cover`, { method: 'POST' }).catch(() => {
+        // Cover generation is best-effort; never block trip creation on it.
+      })
+    }
 
     router.push(`/trips/${trip.id}`)
   }
@@ -65,12 +69,7 @@ export default function NewTripPage() {
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
           <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md space-y-4">
             <h1 className="text-2xl font-bold">New Trip</h1>
-
-            <div>
-              <label htmlFor="destination" className="block text-sm font-medium text-gray-700 mb-1">Destination</label>
-              <input id="destination" name="destination" type="text" required placeholder="Bora Bora, French Polynesia"
-                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-            </div>
+            <p className="text-xs text-gray-500">Only the trip name is required. The rest auto-fills as you add bookings.</p>
 
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">Trip Name</label>
@@ -78,15 +77,21 @@ export default function NewTripPage() {
                 className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
             </div>
 
+            <div>
+              <label htmlFor="destination" className="block text-sm font-medium text-gray-700 mb-1">Destination (optional)</label>
+              <input id="destination" name="destination" type="text" placeholder="Bora Bora, French Polynesia"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="date_start" className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                <input id="date_start" name="date_start" type="date" required
+                <label htmlFor="date_start" className="block text-sm font-medium text-gray-700 mb-1">Start Date (optional)</label>
+                <input id="date_start" name="date_start" type="date"
                   className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
               </div>
               <div>
-                <label htmlFor="date_end" className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                <input id="date_end" name="date_end" type="date" required
+                <label htmlFor="date_end" className="block text-sm font-medium text-gray-700 mb-1">End Date (optional)</label>
+                <input id="date_end" name="date_end" type="date"
                   className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
               </div>
             </div>
@@ -111,29 +116,14 @@ export default function NewTripPage() {
       <div className="theme-editorial-tree">
         <PageShell back={{ href: '/trips', label: 'all trips' }}>
           <PageHeader kicker="new trip" title="Plan a trip" />
+          <p
+            className="px-5 detail-mono mb-4"
+            style={{ opacity: 0.7 }}
+          >
+            Only the trip name is required. Destination, dates, and timezone fill in
+            automatically as you add bookings.
+          </p>
           <form onSubmit={handleSubmit} className="px-5 pb-12">
-            <div className="mb-5">
-              <MonoLabel className="block mb-1">destination</MonoLabel>
-              <input
-                id="destination"
-                name="destination"
-                type="text"
-                required
-                placeholder="Bora Bora, French Polynesia"
-                style={{
-                  width: '100%',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '18px',
-                  border: 'none',
-                  borderBottom: '1px solid var(--stroke)',
-                  padding: '6px 0',
-                  background: 'transparent',
-                  color: 'var(--stroke)',
-                  outline: 'none',
-                }}
-              />
-            </div>
-
             <div className="mb-5">
               <MonoLabel className="block mb-1">trip name</MonoLabel>
               <input
@@ -156,14 +146,34 @@ export default function NewTripPage() {
               />
             </div>
 
+            <div className="mb-5">
+              <MonoLabel className="block mb-1">destination · optional</MonoLabel>
+              <input
+                id="destination"
+                name="destination"
+                type="text"
+                placeholder="Bora Bora — or leave blank, we'll fill it in"
+                style={{
+                  width: '100%',
+                  fontFamily: 'var(--font-serif)',
+                  fontSize: '18px',
+                  border: 'none',
+                  borderBottom: '1px solid var(--stroke)',
+                  padding: '6px 0',
+                  background: 'transparent',
+                  color: 'var(--stroke)',
+                  outline: 'none',
+                }}
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-5 mb-5">
               <div>
-                <MonoLabel className="block mb-1">start date</MonoLabel>
+                <MonoLabel className="block mb-1">start date · optional</MonoLabel>
                 <input
                   id="date_start"
                   name="date_start"
                   type="date"
-                  required
                   style={{
                     width: '100%',
                     fontFamily: 'var(--font-serif)',
@@ -178,12 +188,11 @@ export default function NewTripPage() {
                 />
               </div>
               <div>
-                <MonoLabel className="block mb-1">end date</MonoLabel>
+                <MonoLabel className="block mb-1">end date · optional</MonoLabel>
                 <input
                   id="date_end"
                   name="date_end"
                   type="date"
-                  required
                   style={{
                     width: '100%',
                     fontFamily: 'var(--font-serif)',

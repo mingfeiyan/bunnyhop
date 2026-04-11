@@ -11,15 +11,18 @@ import MonoLabel from '@/components/ui/MonoLabel'
 type TripRow = {
   id: string
   title: string
-  destination: string
-  date_start: string
-  date_end: string
+  destination: string | null
+  date_start: string | null
+  date_end: string | null
   cover_image_url: string | null
   role: string
 }
 
-type Bucket = 'upcoming' | 'in_progress' | 'past'
+type Bucket = 'upcoming' | 'in_progress' | 'past' | 'undated'
 function bucketForTrip(trip: TripRow): Bucket {
+  // Trips with no dates yet land in their own bucket so they don't disappear.
+  // Auto-fill from bookings will move them into a real bucket later.
+  if (!trip.date_start || !trip.date_end) return 'undated'
   const today = new Date().toISOString().slice(0, 10)
   if (today < trip.date_start) return 'upcoming'
   if (today > trip.date_end) return 'past'
@@ -27,8 +30,9 @@ function bucketForTrip(trip: TripRow): Bucket {
 }
 
 const BUCKET_LABEL: Record<Bucket, string> = {
-  upcoming: 'Upcoming',
   in_progress: 'In progress',
+  upcoming: 'Upcoming',
+  undated: 'No dates yet',
   past: 'Past',
 }
 
@@ -52,23 +56,30 @@ export default async function TripsPage() {
   // Sort by date proximity to today (closest first):
   //  1. in-progress trips first (today is during the trip)
   //  2. upcoming trips next, soonest start date first
-  //  3. past trips last, most-recently-ended first
-  const BUCKET_ORDER: Record<Bucket, number> = { in_progress: 0, upcoming: 1, past: 2 }
+  //  3. undated trips next (no date info to sort on, alphabetical by title)
+  //  4. past trips last, most-recently-ended first
+  const BUCKET_ORDER: Record<Bucket, number> = { in_progress: 0, upcoming: 1, undated: 2, past: 3 }
   const trips: TripRow[] = [...rawTrips].sort((a, b) => {
     const ba = bucketForTrip(a)
     const bb = bucketForTrip(b)
     if (ba !== bb) return BUCKET_ORDER[ba] - BUCKET_ORDER[bb]
     if (ba === 'past') {
-      // most recent past first → date_end descending
-      return b.date_end.localeCompare(a.date_end)
+      // most recent past first → date_end descending. Both are guaranteed
+      // non-null because the bucket logic puts null-dated trips in 'undated'.
+      return (b.date_end ?? '').localeCompare(a.date_end ?? '')
+    }
+    if (ba === 'undated') {
+      // No dates to sort by → fall back to title alphabetical
+      return a.title.localeCompare(b.title)
     }
     // upcoming and in_progress → soonest start first → date_start ascending
-    return a.date_start.localeCompare(b.date_start)
+    return (a.date_start ?? '').localeCompare(b.date_start ?? '')
   })
 
   // Group by status for the editorial tree (already sorted within each)
   const upcoming = trips.filter(t => bucketForTrip(t) === 'upcoming')
   const inProgress = trips.filter(t => bucketForTrip(t) === 'in_progress')
+  const undated = trips.filter(t => bucketForTrip(t) === 'undated')
   const past = trips.filter(t => bucketForTrip(t) === 'past')
 
   return (
@@ -96,9 +107,11 @@ export default async function TripsPage() {
                   <Link key={trip.id} href={`/trips/${trip.id}`}
                     className="block bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition">
                     <h2 className="font-semibold text-lg">{trip.title}</h2>
-                    <p className="text-gray-500">{trip.destination}</p>
+                    <p className="text-gray-500">{trip.destination ?? 'Destination not set'}</p>
                     <p className="text-sm text-gray-400 mt-1">
-                      {new Date(trip.date_start).toLocaleDateString()} — {new Date(trip.date_end).toLocaleDateString()}
+                      {trip.date_start && trip.date_end
+                        ? `${new Date(trip.date_start).toLocaleDateString()} — ${new Date(trip.date_end).toLocaleDateString()}`
+                        : 'Dates not set'}
                     </p>
                   </Link>
                 ))}
@@ -143,8 +156,12 @@ export default async function TripsPage() {
             </div>
           ) : (
             <main className="pb-12">
-              {(['in_progress', 'upcoming', 'past'] as Bucket[]).map(bucket => {
-                const list = bucket === 'in_progress' ? inProgress : bucket === 'upcoming' ? upcoming : past
+              {(['in_progress', 'upcoming', 'undated', 'past'] as Bucket[]).map(bucket => {
+                const list =
+                  bucket === 'in_progress' ? inProgress
+                  : bucket === 'upcoming' ? upcoming
+                  : bucket === 'undated' ? undated
+                  : past
                 if (list.length === 0) return null
                 return (
                   <DaySection
@@ -152,33 +169,42 @@ export default async function TripsPage() {
                     title={BUCKET_LABEL[bucket]}
                     tag={`${list.length} ${list.length === 1 ? 'trip' : 'trips'}`}
                   >
-                    {list.map(trip => (
-                      <Link
-                        key={trip.id}
-                        href={`/trips/${trip.id}`}
-                        style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}
-                      >
-                        {trip.cover_image_url && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={trip.cover_image_url}
-                            alt={trip.destination}
-                            style={{
-                              width: '100%',
-                              height: '160px',
-                              objectFit: 'cover',
-                              display: 'block',
-                              borderBottom: '1px solid var(--stroke)',
-                            }}
+                    {list.map(trip => {
+                      const time = trip.date_start
+                        ? new Date(trip.date_start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                        : ''
+                      const dateStr = trip.date_start && trip.date_end
+                        ? `${new Date(trip.date_start).toLocaleDateString()} — ${new Date(trip.date_end).toLocaleDateString()}`
+                        : 'dates pending'
+                      const details = [trip.destination, dateStr].filter(Boolean).join(' · ')
+                      return (
+                        <Link
+                          key={trip.id}
+                          href={`/trips/${trip.id}`}
+                          style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}
+                        >
+                          {trip.cover_image_url && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={trip.cover_image_url}
+                              alt={trip.destination ?? trip.title}
+                              style={{
+                                width: '100%',
+                                height: '160px',
+                                objectFit: 'cover',
+                                display: 'block',
+                                borderBottom: '1px solid var(--stroke)',
+                              }}
+                            />
+                          )}
+                          <EventCard
+                            time={time}
+                            title={trip.title}
+                            details={details}
                           />
-                        )}
-                        <EventCard
-                          time={new Date(trip.date_start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                          title={trip.title}
-                          details={`${trip.destination} · ${new Date(trip.date_start).toLocaleDateString()} — ${new Date(trip.date_end).toLocaleDateString()}`}
-                        />
-                      </Link>
-                    ))}
+                        </Link>
+                      )
+                    })}
                   </DaySection>
                 )
               })}

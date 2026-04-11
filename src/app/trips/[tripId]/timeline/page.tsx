@@ -191,9 +191,14 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
 
     const hasEvents = allEvents.length > 0
 
-    // Editorial-tree precomputed values
-    const dateRange = `${trip.date_start} — ${trip.date_end}`
+    // Editorial-tree precomputed values. trip.destination / date_start /
+    // date_end may be null on a freshly-created trip with no bookings yet —
+    // guard the strip text and the countdown.
+    const hasDates = Boolean(trip.date_start && trip.date_end)
+    const dateRange = hasDates ? `${trip.date_start} — ${trip.date_end}` : null
     const countdown = tripCountdown(trip.date_start, trip.date_end)
+    const headerTitle = trip.destination ?? trip.title ?? 'Trip'
+    const metaLeft = dateRange ?? 'add bookings to fill in dates'
     const eventCount = allEvents.length
     const dayCount = dateGroups.length
 
@@ -206,7 +211,7 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
               <div className="bg-white rounded-2xl shadow-sm p-6">
                 <Link href={`/trips/${tripId}`} className="text-sm text-blue-600 mb-2 block">&larr; Back to trip</Link>
                 <h1 className="text-2xl font-bold">Timeline</h1>
-                <p className="text-gray-500">{trip.destination}</p>
+                <p className="text-gray-500">{trip.destination ?? 'No destination set'}</p>
               </div>
 
               {!hasEvents ? (
@@ -266,8 +271,8 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
         {/* === Editorial tree === */}
         <div className="theme-editorial-tree">
           <PageShell back={{ href: `/trips/${tripId}`, label: 'back to trip' }}>
-            <PageHeader kicker="trip timeline" title={trip.destination} />
-            <MetaStrip left={dateRange} right={countdown} />
+            <PageHeader kicker="trip timeline" title={headerTitle} />
+            <MetaStrip left={metaLeft} right={countdown ?? undefined} />
             {hasEvents && (
               <OverviewGrid
                 stats={[

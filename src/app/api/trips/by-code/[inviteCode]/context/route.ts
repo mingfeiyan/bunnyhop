@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { parseContext } from '@/lib/claude'
 import { parsedEntryToTimelineEvent } from '@/lib/timeline-events'
+import { autofillTripFromEvents, fireCoverGenerationIfNeeded } from '@/lib/trip-autofill'
 import { NextResponse } from 'next/server'
 
 export async function POST(
@@ -8,6 +9,7 @@ export async function POST(
   { params }: { params: Promise<{ inviteCode: string }> }
 ) {
   const { inviteCode } = await params
+  const origin = new URL(request.url).origin
 
   const supabase = createServiceClient()
 
@@ -69,6 +71,10 @@ export async function POST(
       return NextResponse.json({ error: `timeline_events insert failed: ${error.message}` }, { status: 500 })
     }
     if (data) inserted.push(...data)
+
+    // Backfill missing trip metadata from the events. Idempotent.
+    const result = await autofillTripFromEvents(supabase, trip.id)
+    fireCoverGenerationIfNeeded(origin, trip.id, result)
   }
 
   if (contextRows.length > 0) {

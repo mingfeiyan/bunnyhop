@@ -54,9 +54,9 @@ type GeneratedCard = {
 }
 
 export type GenerateCardsOptions = {
-  destination: string
-  dateStart: string
-  dateEnd: string
+  destination: string                // required — caller must reject null first
+  dateStart: string | null           // optional; falls back to "not yet set"
+  dateEnd: string | null
   contexts?: TripContext[]
   timelineEvents?: TimelineEventRow[]
   existingTitles?: string[]
@@ -84,6 +84,10 @@ export async function generateCards(opts: GenerateCardsOptions): Promise<Generat
     ? `\n\nAlready suggested (do NOT duplicate): ${existingTitles.join(', ')}`
     : ''
 
+  const datesLine = dateStart && dateEnd
+    ? `${dateStart} to ${dateEnd}`
+    : 'not yet set — suggest year-round options'
+
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 8000,
@@ -92,7 +96,7 @@ export async function generateCards(opts: GenerateCardsOptions): Promise<Generat
       content: `You are a travel recommendation expert. Generate 20-25 recommendations for a trip.
 
 Destination: ${destination}
-Dates: ${dateStart} to ${dateEnd}
+Dates: ${datesLine}
 ${timelineSummary ? `\nConfirmed bookings (use these to anchor recommendations — suggest things near the hotels, schedule around flights and existing activities, and don't double-book the same time slots):\n${timelineSummary}` : ''}
 ${contextSummary ? `\nTraveler notes & constraints:\n${contextSummary}` : ''}
 ${existingList}
