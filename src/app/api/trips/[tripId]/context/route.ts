@@ -42,7 +42,7 @@ export async function POST(
   const contextRows: Array<Record<string, unknown>> = []
 
   for (const entry of parsedEntries) {
-    if (entry.type === 'flight' || entry.type === 'hotel') {
+    if (entry.type === 'flight' || entry.type === 'hotel' || entry.type === 'activity') {
       const ev = parsedEntryToTimelineEvent(entry)
       if (ev) {
         timelineRows.push({

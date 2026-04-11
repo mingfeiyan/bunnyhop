@@ -1,26 +1,18 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { formatTime12h } from '@/lib/timeline-events'
 import type { TripContext, TimelineEventRow } from '@/types'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
-// Convert HH:MM 24-hour to a friendly 12-hour string for the prompt
-function fmtTime(t: string | null): string {
-  if (!t) return ''
-  const m = t.match(/^(\d{1,2}):(\d{2})$/)
-  if (!m) return t
-  const h = Number(m[1])
-  const period = h >= 12 ? 'PM' : 'AM'
-  const hour12 = h % 12 || 12
-  return `${hour12}:${m[2]} ${period}`
-}
-
-// Build a single-line summary of a timeline_events row for the prompt
+// Build a single-line summary of a timeline_events row for the prompt.
+// Includes location/address/raw context where available so Claude has enough
+// signal to suggest nearby things and de-duplicate against confirmed activities.
 function summarizeTimelineEvent(ev: TimelineEventRow): string {
   if (ev.type === 'flight') {
     const route = ev.origin && ev.destination ? `${ev.origin} → ${ev.destination}` : ''
-    const time = ev.start_time ? ` at ${fmtTime(ev.start_time)}` : ''
+    const time = ev.start_time ? ` at ${formatTime12h(ev.start_time)}` : ''
     return `[flight] ${ev.start_date}${time} — ${ev.title}${route ? ` (${route})` : ''}`
   }
   if (ev.type === 'hotel') {
@@ -29,8 +21,11 @@ function summarizeTimelineEvent(ev: TimelineEventRow): string {
     return `[hotel] ${range} — ${ev.title}${address ? ` (${address})` : ''}`
   }
   // activity
-  const time = ev.start_time ? ` at ${fmtTime(ev.start_time)}` : ''
-  return `[activity] ${ev.start_date}${time} — ${ev.title}`
+  const time = ev.start_time ? ` at ${formatTime12h(ev.start_time)}` : ''
+  const location = (ev.details?.location as string) || ''
+  const organizer = (ev.details?.organizer as string) || ''
+  const extras = [location, organizer].filter(Boolean).join(', ')
+  return `[activity] ${ev.start_date}${time} — ${ev.title}${extras ? ` (${extras})` : ''}`
 }
 
 type GeneratedCard = {

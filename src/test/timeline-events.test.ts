@@ -66,13 +66,60 @@ describe('parsedEntryToTimelineEvent', () => {
     expect(parsedEntryToTimelineEvent(entry)).toBeNull()
   })
 
-  it('returns null for non-flight non-hotel entries', () => {
+  it('returns null for note/constraint entries', () => {
     const noteEntry: ParsedEntry = {
       type: 'note',
       raw_text: 'remember sunscreen',
       details: { summary: 'remember sunscreen' },
     }
     expect(parsedEntryToTimelineEvent(noteEntry)).toBeNull()
+  })
+
+  it('converts a parsed activity entry to a timeline event row', () => {
+    const entry: ParsedEntry = {
+      type: 'activity',
+      raw_text: 'Sunset catamaran cruise Jun 28 5pm',
+      details: {
+        name: 'Sunset Catamaran Cruise',
+        date: '2026-06-28',
+        start_time: '17:00',
+        end_time: '19:30',
+        location: 'Vaitape Harbor',
+        confirmation: 'CRUISE-789',
+      },
+    }
+    const result = parsedEntryToTimelineEvent(entry)
+    expect(result).not.toBeNull()
+    expect(result?.type).toBe('activity')
+    expect(result?.title).toBe('Sunset Catamaran Cruise')
+    expect(result?.start_date).toBe('2026-06-28')
+    expect(result?.start_time).toBe('17:00')
+    expect(result?.end_time).toBe('19:30')
+    expect(result?.reference).toBe('CRUISE-789')
+  })
+
+  it('returns null for activity without a valid date', () => {
+    const entry: ParsedEntry = {
+      type: 'activity',
+      raw_text: 'Some snorkeling',
+      details: { name: 'Snorkeling' },
+    }
+    expect(parsedEntryToTimelineEvent(entry)).toBeNull()
+  })
+
+  it('drops malformed time strings on activity', () => {
+    const entry: ParsedEntry = {
+      type: 'activity',
+      raw_text: 'Tour at 7pm',
+      details: {
+        name: 'Garden Tour',
+        date: '2026-06-28',
+        start_time: '7pm', // not HH:MM 24h
+      },
+    }
+    const result = parsedEntryToTimelineEvent(entry)
+    expect(result).not.toBeNull()
+    expect(result?.start_time).toBeNull()
   })
 })
 

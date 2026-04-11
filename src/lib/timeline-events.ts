@@ -2,9 +2,19 @@ import type { ParsedEntry } from '@/lib/claude'
 import type { TimelineEventRow } from '@/types'
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+const TIME_24H_RE = /^([01]\d|2[0-3]):[0-5]\d$/
 
 function isIsoDate(value: unknown): value is string {
   return typeof value === 'string' && ISO_DATE_RE.test(value)
+}
+
+function isValidTime(value: unknown): value is string {
+  return typeof value === 'string' && TIME_24H_RE.test(value)
+}
+
+// Coerce a time-like value to HH:MM 24h or null. Drops malformed strings.
+function coerceTime(value: unknown): string | null {
+  return isValidTime(value) ? value : null
 }
 
 // Insertable shape — omits DB-managed fields and `added_by` (set by caller)
@@ -27,8 +37,8 @@ export function parsedEntryToTimelineEvent(entry: ParsedEntry): TimelineEventIns
     const flightNumber = (details.flight_number as string) || ''
     const origin = (details.origin as string) || null
     const destination = (details.destination as string) || null
-    const departureTime = (details.departure_time as string) || null
-    const arrivalTime = (details.arrival_time as string) || null
+    const departureTime = coerceTime(details.departure_time)
+    const arrivalTime = coerceTime(details.arrival_time)
 
     // Build a clean title from extracted fields, fall back to raw_text
     const titleParts = [airline, flightNumber, origin && destination ? `${origin} → ${destination}` : ''].filter(Boolean)
@@ -79,8 +89,8 @@ export function parsedEntryToTimelineEvent(entry: ParsedEntry): TimelineEventIns
   if (!isIsoDate(date)) return null
 
   const name = (details.name as string) || ''
-  const startTime = (details.start_time as string) || null
-  const endTime = (details.end_time as string) || null
+  const startTime = coerceTime(details.start_time)
+  const endTime = coerceTime(details.end_time)
   const title = name || entry.raw_text
   const reference = (details.confirmation as string) || null
 
@@ -101,7 +111,7 @@ export function parsedEntryToTimelineEvent(entry: ParsedEntry): TimelineEventIns
 }
 
 // Convert HH:MM 24-hour format to 12-hour format with AM/PM
-function formatTime12h(value: string | null): string {
+export function formatTime12h(value: string | null): string {
   if (!value) return ''
   const match = value.match(/^(\d{1,2}):(\d{2})$/)
   if (!match) return value
@@ -131,7 +141,7 @@ export function formatTimelineEventDescription(event: TimelineEventRow): string 
     const timeStr = timeParts.join(' – ')
     const location = (event.details?.location as string) || ''
     const parts = [timeStr, location, event.reference].filter(Boolean)
-    return parts.join(' — ') || ''
+    return parts.join(' — ') || event.title
   }
 
   // hotel

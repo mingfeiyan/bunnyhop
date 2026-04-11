@@ -94,13 +94,15 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
       }
     }
 
-    // Sort by date, then phase (check_out morning → flight → activity → check_in afternoon),
-    // then start_time as a tiebreaker for same-phase same-date events.
+    // Sort by date, then phase (check_out morning → flight → check_in → activity),
+    // then start_time as a tiebreaker for same-phase same-date events. The order
+    // reflects a typical day: morning hotel checkout, midday flight, afternoon
+    // hotel check-in, then evening activities.
     const PHASE_ORDER: Record<RenderPosition['phase'], number> = {
       check_out: 0,
       flight: 1,
-      activity: 2,
-      check_in: 3,
+      check_in: 2,
+      activity: 3,
     }
     positions.sort((a, b) => {
       const dateCmp = a.date.localeCompare(b.date)
