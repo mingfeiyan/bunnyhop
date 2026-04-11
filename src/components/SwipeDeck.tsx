@@ -12,14 +12,17 @@ type Props = {
   onSwipe: (cardId: string, preference: SwipeDirection) => void
 }
 
+// SwipeDeck is purely controlled by its `cards` prop. It always shows
+// `cards[0]` as the front card. After a swipe, the parent removes the swiped
+// card from the array (via its `votes` filter) and `cards[0]` automatically
+// becomes the next card. Keeping a `currentIndex` here would double-advance
+// the deck (parent shrinks the array AND child advances the index → skip).
 export default function SwipeDeck({ cards, destination, onSwipe }: Props) {
-  const [currentIndex, setCurrentIndex] = useState(0)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const startPos = useRef({ x: 0, y: 0 })
 
-  const currentCard = cards[currentIndex]
-  const isComplete = currentIndex >= cards.length
+  const currentCard = cards[0]
 
   function handlePointerDown(e: React.PointerEvent) {
     setIsDragging(true)
@@ -56,7 +59,6 @@ export default function SwipeDeck({ cards, destination, onSwipe }: Props) {
     if (!currentCard) return
     onSwipe(currentCard.id, direction)
     setDragOffset({ x: 0, y: 0 })
-    setCurrentIndex(i => i + 1)
   }
 
   function getOverlayColor() {
@@ -73,27 +75,18 @@ export default function SwipeDeck({ cards, destination, onSwipe }: Props) {
     return null
   }
 
-  if (isComplete) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <p className="text-2xl font-bold mb-2">All done!</p>
-        <p className="text-gray-500">You've swiped through all {cards.length} cards.</p>
-      </div>
-    )
-  }
+  // Defensive: parent should never render us with an empty deck (it switches
+  // to review mode at swipe/page.tsx:113), but guard against a flash of nothing.
+  if (!currentCard) return null
 
   const rotation = dragOffset.x * 0.1
 
   return (
     <div className="relative w-full max-w-sm mx-auto">
-      <p className="text-center text-sm text-gray-400 mb-4">
-        {currentIndex + 1} / {cards.length}
-      </p>
-
       <div className="relative aspect-[3/4]">
-        {currentIndex + 1 < cards.length && (
+        {cards.length > 1 && (
           <div className="absolute inset-0 scale-95 opacity-50">
-            <FlipCard card={cards[currentIndex + 1]} destination={destination} />
+            <FlipCard card={cards[1]} destination={destination} />
           </div>
         )}
 
