@@ -106,16 +106,20 @@ export default function FlipCard({ card, destination }: Props) {
             {card.metadata.duration && <p>⏱️ {card.metadata.duration}</p>}
           </div>
 
-          {/* Review link — always present, target depends on category */}
-          <a
-            href={reviewUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="mt-3 text-center text-sm text-blue-600 hover:underline"
-          >
-            View reviews & photos →
-          </a>
+          {/* Review link — only when we have a confident Google Places match.
+              For generic activities with no place_id, hide the link entirely
+              rather than fall back to a noisy TripAdvisor search. */}
+          {card.metadata.google_place_id && (
+            <a
+              href={reviewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="mt-3 text-center text-sm text-blue-600 hover:underline"
+            >
+              View reviews & photos →
+            </a>
+          )}
 
           <p className="text-xs text-gray-400 mt-2 text-center">Tap to flip back</p>
         </div>
