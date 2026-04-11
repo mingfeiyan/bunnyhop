@@ -7,6 +7,7 @@ export type Trip = {
   created_by: string
   invite_code: string
   timezone: string | null
+  cover_image_url: string | null
   created_at: string
 }
 

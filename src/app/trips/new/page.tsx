@@ -47,6 +47,14 @@ export default function NewTripPage() {
       .from('trip_participants')
       .insert({ trip_id: trip.id, user_id: user.id, role: 'organizer' })
 
+    // Fire-and-forget Gemini cover image generation. Takes ~5-10s on the
+    // server; we don't await — the user is redirected to the trip hub
+    // immediately and the cover appears on /trips next time they look.
+    // Errors are logged server-side; the user never sees them.
+    fetch(`/api/trips/${trip.id}/generate-cover`, { method: 'POST' }).catch(() => {
+      // Cover generation is best-effort; never block trip creation on it.
+    })
+
     router.push(`/trips/${trip.id}`)
   }
 

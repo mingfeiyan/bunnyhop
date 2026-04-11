@@ -14,6 +14,7 @@ type TripRow = {
   destination: string
   date_start: string
   date_end: string
+  cover_image_url: string | null
   role: string
 }
 
@@ -140,6 +141,20 @@ export default async function TripsPage() {
                         href={`/trips/${trip.id}`}
                         style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}
                       >
+                        {trip.cover_image_url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={trip.cover_image_url}
+                            alt={trip.destination}
+                            style={{
+                              width: '100%',
+                              height: '160px',
+                              objectFit: 'cover',
+                              display: 'block',
+                              borderBottom: '1px solid var(--stroke)',
+                            }}
+                          />
+                        )}
                         <EventCard
                           time={new Date(trip.date_start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                           title={trip.title}
