@@ -5,7 +5,9 @@ export type PlaceResult = {
   rating_count: number | null
 }
 
-// Hits Google Places "Find Place from Text" once and returns photo + rating + place_id.
+// Hits Google Places to look up a query and returns photo + rating + place_id.
+// Tries findplacefromtext first (canonical, fast); falls back to textsearch
+// (more lenient, better for fuzzy/descriptive queries).
 // Backwards-compatible photo-only fetch is preserved as searchPlacePhoto.
 export async function searchPlace(query: string): Promise<PlaceResult> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY
@@ -13,12 +15,22 @@ export async function searchPlace(query: string): Promise<PlaceResult> {
     return { photo_url: null, place_id: null, rating: null, rating_count: null }
   }
 
-  const searchRes = await fetch(
+  // Try the precise endpoint first
+  const findRes = await fetch(
     `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(query)}&inputtype=textquery&fields=photos,place_id,rating,user_ratings_total&key=${apiKey}`
   )
-  const searchData = await searchRes.json()
+  const findData = await findRes.json()
+  let place = findData.candidates?.[0]
 
-  const place = searchData.candidates?.[0]
+  // Fall back to the lenient text search endpoint
+  if (!place) {
+    const textRes = await fetch(
+      `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${apiKey}`
+    )
+    const textData = await textRes.json()
+    place = textData.results?.[0]
+  }
+
   if (!place) {
     return { photo_url: null, place_id: null, rating: null, rating_count: null }
   }
