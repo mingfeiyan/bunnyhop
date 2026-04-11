@@ -45,20 +45,20 @@ export async function POST(
 
   const { data: cards, error: cardsError } = await supabase
     .from('cards')
-    .select('id, title, metadata')
+    .select('id, title, image_url, metadata')
     .eq('trip_id', trip.id)
   if (cardsError) {
     return NextResponse.json({ error: cardsError.message }, { status: 500 })
   }
 
-  type CardRow = { id: string; title: string; metadata: Record<string, unknown> | null }
-  // Backfill any card that doesn't yet have a google_place_id, regardless of whether
-  // photo_search_query is present. The query is constructed from title + destination
-  // because the existing photo_search_query strings are descriptive prompts not
-  // suitable for Google Places Find Place from Text.
+  type CardRow = { id: string; title: string; image_url: string | null; metadata: Record<string, unknown> | null }
+  // Backfill any card that's missing a google_place_id OR an image_url. The query
+  // is constructed from title + destination because the existing photo_search_query
+  // strings are descriptive prompts not suitable for Google Places Find Place from
+  // Text.
   const needsBackfill = ((cards ?? []) as CardRow[]).filter(c => {
     const m = (c.metadata ?? {}) as Record<string, unknown>
-    return !m.google_place_id
+    return !m.google_place_id || !c.image_url
   })
 
   const destination = (trip.destination as string) ?? ''
@@ -87,9 +87,16 @@ export async function POST(
         if (place.rating !== null) patch.rating = place.rating
         if (place.rating_count !== null) patch.rating_count = place.rating_count
 
+        // Build the update payload — include image_url if Places returned a photo
+        // and the card doesn't already have one.
+        const update: Record<string, unknown> = { metadata: patch }
+        if (place.photo_url && !card.image_url) {
+          update.image_url = place.photo_url
+        }
+
         const { error: updateError } = await supabase
           .from('cards')
-          .update({ metadata: patch })
+          .update(update)
           .eq('id', card.id)
         if (updateError) {
           return { id: card.id, title: card.title, query, status: 'error', error: updateError.message }
