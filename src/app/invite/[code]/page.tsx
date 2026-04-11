@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import MonoLabel from '@/components/ui/MonoLabel'
 
 export default async function InvitePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
@@ -14,9 +16,55 @@ export default async function InvitePage({ params }: { params: Promise<{ code: s
 
   if (!trip) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Invalid invite link</p>
-      </div>
+      <>
+        {/* === Default tree === */}
+        <div className="theme-default-tree">
+          <div className="min-h-screen flex items-center justify-center">
+            <p className="text-gray-500">Invalid invite link</p>
+          </div>
+        </div>
+
+        {/* === Editorial tree === */}
+        <div className="theme-editorial-tree">
+          <div
+            className="min-h-screen flex items-center justify-center px-6"
+            style={{ background: 'var(--cream)' }}
+          >
+            <div className="text-center max-w-sm">
+              <MonoLabel className="block mb-2">invalid invite</MonoLabel>
+              <h1
+                style={{
+                  fontFamily: 'var(--font-serif)',
+                  fontSize: '32px',
+                  fontWeight: 400,
+                  margin: 0,
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                This link doesn&apos;t work
+              </h1>
+              <p
+                style={{
+                  fontFamily: 'var(--font-serif)',
+                  fontSize: '16px',
+                  fontStyle: 'italic',
+                  opacity: 0.75,
+                  marginTop: '12px',
+                  marginBottom: '24px',
+                }}
+              >
+                The invite code may have been mistyped or the trip was deleted.
+              </p>
+              <Link
+                href="/trips"
+                className="pill-btn pill-btn-sm"
+              >
+                ← back to trips
+              </Link>
+            </div>
+          </div>
+        </div>
+      </>
     )
   }
 
