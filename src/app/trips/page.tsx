@@ -44,12 +44,29 @@ export default async function TripsPage() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  const trips: TripRow[] = (participations ?? []).map(p => ({
+  const rawTrips: TripRow[] = (participations ?? []).map(p => ({
     ...(p.trips as unknown as Record<string, unknown>),
     role: p.role as string,
   })) as unknown as TripRow[]
 
-  // Group by status for the editorial tree
+  // Sort by date proximity to today (closest first):
+  //  1. in-progress trips first (today is during the trip)
+  //  2. upcoming trips next, soonest start date first
+  //  3. past trips last, most-recently-ended first
+  const BUCKET_ORDER: Record<Bucket, number> = { in_progress: 0, upcoming: 1, past: 2 }
+  const trips: TripRow[] = [...rawTrips].sort((a, b) => {
+    const ba = bucketForTrip(a)
+    const bb = bucketForTrip(b)
+    if (ba !== bb) return BUCKET_ORDER[ba] - BUCKET_ORDER[bb]
+    if (ba === 'past') {
+      // most recent past first → date_end descending
+      return b.date_end.localeCompare(a.date_end)
+    }
+    // upcoming and in_progress → soonest start first → date_start ascending
+    return a.date_start.localeCompare(b.date_start)
+  })
+
+  // Group by status for the editorial tree (already sorted within each)
   const upcoming = trips.filter(t => bucketForTrip(t) === 'upcoming')
   const inProgress = trips.filter(t => bucketForTrip(t) === 'in_progress')
   const past = trips.filter(t => bucketForTrip(t) === 'past')

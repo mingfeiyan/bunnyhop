@@ -14,7 +14,11 @@
 // starting with "imagen-" use :predict, anything else uses :generateContent.
 
 const GEMINI_API = 'https://generativelanguage.googleapis.com/v1beta'
-const DEFAULT_MODEL = 'gemini-2.5-flash-image-preview'
+// gemini-2.5-flash-image (codename "Nano Banana") is the stable production
+// image generation model on the Gemini API. Verified accessible via the
+// debug endpoint. Override with GEMINI_IMAGE_MODEL env var if you have a
+// different tier (e.g. imagen-4.0-generate-001 via the predict path).
+const DEFAULT_MODEL = 'gemini-2.5-flash-image'
 
 export type GeneratedImage = {
   data: Buffer
