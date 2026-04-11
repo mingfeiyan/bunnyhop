@@ -1,27 +1,7 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServiceClient } from '@/lib/supabase/server'
 import { parseContext } from '@/lib/claude'
 import { parsedEntryToTimelineEvent } from '@/lib/timeline-events'
 import { NextResponse } from 'next/server'
-
-// Create a Supabase client with service role key (bypasses RLS)
-// Used for agent API where there's no browser session
-function createServiceClient() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceRoleKey) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set')
-  }
-
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey,
-    {
-      cookies: {
-        getAll: () => [],
-        setAll: () => {},
-      },
-    }
-  )
-}
 
 export async function POST(
   request: Request,

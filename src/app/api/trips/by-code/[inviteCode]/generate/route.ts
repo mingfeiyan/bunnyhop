@@ -8,26 +8,9 @@
 // fetches pushes the total over Vercel's serverless function timeout. Calling
 // /backfill-places afterward populates photos/ratings.
 
-import { createServerClient } from '@supabase/ssr'
+import { createServiceClient } from '@/lib/supabase/server'
 import { generateCards } from '@/lib/card-generator'
 import { NextResponse } from 'next/server'
-
-function createServiceClient() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceRoleKey) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set')
-  }
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey,
-    {
-      cookies: {
-        getAll: () => [],
-        setAll: () => {},
-      },
-    }
-  )
-}
 
 export async function POST(
   _request: Request,
@@ -36,7 +19,7 @@ export async function POST(
   const { inviteCode } = await params
   const supabase = createServiceClient()
 
-  // Find trip by invite code — the invite code IS the auth
+  // The invite code IS the auth — anyone with the code can trigger generation.
   const { data: trip, error: tripError } = await supabase
     .from('trips')
     .select('*')
@@ -46,25 +29,17 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid invite code' }, { status: 404 })
   }
 
-  // Get trip context (constraints, notes)
-  const { data: contexts } = await supabase
-    .from('trip_context')
-    .select('*')
-    .eq('trip_id', trip.id)
-
-  // Get confirmed timeline events (flights, hotels, activities)
-  const { data: timelineEvents } = await supabase
-    .from('timeline_events')
-    .select('*')
-    .eq('trip_id', trip.id)
-    .order('start_date', { ascending: true })
-
-  // Get existing card titles to avoid duplicates
-  const { data: existingCards } = await supabase
-    .from('cards')
-    .select('title')
-    .eq('trip_id', trip.id)
-  const existingTitles = existingCards?.map(c => c.title) ?? []
+  // The three follow-up reads are independent of each other — fan them out.
+  const [contextsRes, timelineRes, existingCardsRes] = await Promise.all([
+    supabase.from('trip_context').select('*').eq('trip_id', trip.id),
+    supabase
+      .from('timeline_events')
+      .select('*')
+      .eq('trip_id', trip.id)
+      .order('start_date', { ascending: true }),
+    supabase.from('cards').select('title').eq('trip_id', trip.id),
+  ])
+  const existingTitles = existingCardsRes.data?.map(c => c.title) ?? []
 
   let generated
   try {
@@ -72,17 +47,20 @@ export async function POST(
       destination: trip.destination,
       dateStart: trip.date_start,
       dateEnd: trip.date_end,
-      contexts: contexts ?? [],
-      timelineEvents: timelineEvents ?? [],
+      contexts: contextsRes.data ?? [],
+      timelineEvents: timelineRes.data ?? [],
       existingTitles,
     })
   } catch (err) {
     console.error('[by-code generate] Card generation failed:', err)
-    return NextResponse.json({ error: `Card generation failed: ${String(err)}` }, { status: 500 })
+    return NextResponse.json(
+      { error: `Card generation failed: ${String(err)}`, cards: [], count: 0 },
+      { status: 500 }
+    )
   }
 
   if (!generated || generated.length === 0) {
-    return NextResponse.json({ cards: [], count: 0, note: 'no cards generated' })
+    return NextResponse.json({ cards: [], count: 0 })
   }
 
   const cardsToInsert = generated.map(card => ({
@@ -102,10 +80,12 @@ export async function POST(
     .select()
 
   if (insertError) {
-    return NextResponse.json({ error: `Card insert failed: ${insertError.message}` }, { status: 500 })
+    console.error('[by-code generate] Card insert failed:', insertError)
+    return NextResponse.json({ error: insertError.message }, { status: 500 })
   }
 
   return NextResponse.json({
+    cards: inserted ?? [],
     count: inserted?.length ?? 0,
     note: 'Cards generated. Photos and ratings are populated by /backfill-places (call separately).',
   })

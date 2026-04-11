@@ -38,42 +38,37 @@ export async function POST(
     return NextResponse.json({ error: 'Trip not found' }, { status: 404 })
   }
 
-  // Get existing context (constraints, notes, etc.)
-  const { data: contexts } = await supabase
-    .from('trip_context')
-    .select('*')
-    .eq('trip_id', tripId)
+  // The three follow-up reads are independent of each other — fan them out.
+  // contexts = constraints/notes; timelineEvents = confirmed flights, hotels,
+  // activities (so the generator can suggest things near the hotels and around
+  // the schedule); existingCards = titles to avoid duplicates.
+  const [contextsRes, timelineRes, existingCardsRes] = await Promise.all([
+    supabase.from('trip_context').select('*').eq('trip_id', tripId),
+    supabase
+      .from('timeline_events')
+      .select('*')
+      .eq('trip_id', tripId)
+      .order('start_date', { ascending: true }),
+    supabase.from('cards').select('title').eq('trip_id', tripId),
+  ])
+  const existingTitles = existingCardsRes.data?.map(c => c.title) ?? []
 
-  // Get confirmed timeline events (flights, hotels, activities) so the
-  // generator can suggest things near the hotels and around the schedule.
-  const { data: timelineEvents } = await supabase
-    .from('timeline_events')
-    .select('*')
-    .eq('trip_id', tripId)
-    .order('start_date', { ascending: true })
-
-  // Get existing card titles to avoid duplicates
-  const { data: existingCards } = await supabase
-    .from('cards')
-    .select('title')
-    .eq('trip_id', tripId)
-
-  const existingTitles = existingCards?.map(c => c.title) ?? []
-
-  // Generate cards
   let generated
   try {
     generated = await generateCards({
       destination: trip.destination,
       dateStart: trip.date_start,
       dateEnd: trip.date_end,
-      contexts: contexts ?? [],
-      timelineEvents: timelineEvents ?? [],
+      contexts: contextsRes.data ?? [],
+      timelineEvents: timelineRes.data ?? [],
       existingTitles,
     })
   } catch (err) {
     console.error('Card generation failed:', err)
-    return NextResponse.json({ error: `Card generation failed: ${err}`, count: 0 }, { status: 500 })
+    return NextResponse.json(
+      { error: `Card generation failed: ${err}`, cards: [], count: 0 },
+      { status: 500 }
+    )
   }
 
   console.log(`Generated ${generated.length} cards for trip ${tripId}`)

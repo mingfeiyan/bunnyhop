@@ -25,3 +25,23 @@ export async function createClient() {
     }
   )
 }
+
+// Service-role client for invite-code-based agent endpoints. Bypasses RLS,
+// so callers MUST authenticate the request some other way (e.g. by looking
+// up the trip via its invite code, which acts as the bearer secret).
+export function createServiceClient() {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceRoleKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set')
+  }
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceRoleKey,
+    {
+      cookies: {
+        getAll: () => [],
+        setAll: () => {},
+      },
+    }
+  )
+}

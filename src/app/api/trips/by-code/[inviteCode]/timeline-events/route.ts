@@ -1,24 +1,5 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-
-// Service-role client for invite-code-based agent access (bypasses RLS)
-function createServiceClient() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceRoleKey) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set')
-  }
-
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey,
-    {
-      cookies: {
-        getAll: () => [],
-        setAll: () => {},
-      },
-    }
-  )
-}
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 // HH:MM 24-hour format, 00:00 through 23:59

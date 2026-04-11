@@ -1,30 +1,28 @@
-// One-shot backfill endpoint: re-fetches Google Places data for every card in
-// a trip that has a photo_search_query but is missing google_place_id, then
-// patches rating, rating_count, and google_place_id into the card's metadata.
-// Idempotent — running it twice is safe; the second run finds nothing to do.
+// One-shot backfill endpoint: populates Google Places data on cards that are
+// missing a google_place_id or an image_url. Idempotent — running it twice is
+// safe; the second run finds nothing to do.
 //
 // Use:
 //   curl -X POST https://<host>/api/trips/by-code/<invite_code>/backfill-places
 
-import { createServerClient } from '@supabase/ssr'
-import { searchPlace } from '@/lib/google-places'
+import { createServiceClient } from '@/lib/supabase/server'
+import { searchPlace, fetchPlacePhoto } from '@/lib/google-places'
 import { NextResponse } from 'next/server'
 
-function createServiceClient() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceRoleKey) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set')
-  }
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey,
-    {
-      cookies: {
-        getAll: () => [],
-        setAll: () => {},
-      },
-    }
-  )
+type CardRow = {
+  id: string
+  title: string
+  image_url: string | null
+  metadata: Record<string, unknown> | null
+}
+
+type Result = {
+  id: string
+  title: string
+  status: 'ok' | 'no_places_data' | 'error'
+  rating?: number | null
+  rating_count?: number | null
+  error?: string
 }
 
 export async function POST(
@@ -51,45 +49,51 @@ export async function POST(
     return NextResponse.json({ error: cardsError.message }, { status: 500 })
   }
 
-  type CardRow = { id: string; title: string; image_url: string | null; metadata: Record<string, unknown> | null }
-  // Backfill any card that's missing a google_place_id OR an image_url. The query
-  // is constructed from title + destination because the existing photo_search_query
-  // strings are descriptive prompts not suitable for Google Places Find Place from
-  // Text.
   const needsBackfill = ((cards ?? []) as CardRow[]).filter(c => {
-    const m = (c.metadata ?? {}) as Record<string, unknown>
+    const m = c.metadata ?? {}
     return !m.google_place_id || !c.image_url
   })
 
-  const destination = (trip.destination as string) ?? ''
-
-  type Result = {
-    id: string
-    title: string
-    query: string
-    status: 'ok' | 'no_places_data' | 'error'
-    rating?: number | null
-    rating_count?: number | null
-    error?: string
-  }
+  const destination = String(trip.destination ?? '')
 
   const results: Result[] = await Promise.all(
     needsBackfill.map(async (card): Promise<Result> => {
-      const m = (card.metadata ?? {}) as Record<string, unknown>
-      const query = `${card.title} ${destination}`.trim()
+      const m = card.metadata ?? {}
+      const existingPlaceId = typeof m.google_place_id === 'string' ? m.google_place_id : null
+
       try {
+        // Photo-only path: card already has a place_id, just missing the photo.
+        // Cheaper than re-running findplacefromtext, and avoids the risk of the
+        // fuzzy text match resolving to a different place and overwriting the
+        // cached rating/rating_count.
+        if (existingPlaceId && !card.image_url) {
+          const photoUrl = await fetchPlacePhoto(existingPlaceId)
+          if (!photoUrl) {
+            return { id: card.id, title: card.title, status: 'no_places_data' }
+          }
+          const { error: updateError } = await supabase
+            .from('cards')
+            .update({ image_url: photoUrl })
+            .eq('id', card.id)
+          if (updateError) {
+            return { id: card.id, title: card.title, status: 'error', error: updateError.message }
+          }
+          return { id: card.id, title: card.title, status: 'ok' }
+        }
+
+        // Full lookup: no place_id yet — fuzzy search on title + destination
+        // and patch metadata + image_url with whatever Places returns.
+        const query = `${card.title} ${destination}`.trim()
         const place = await searchPlace(query)
         if (place.place_id === null && place.rating === null && place.rating_count === null) {
-          return { id: card.id, title: card.title, query, status: 'no_places_data' }
+          return { id: card.id, title: card.title, status: 'no_places_data' }
         }
         const patch: Record<string, unknown> = { ...m }
         if (place.place_id !== null) patch.google_place_id = place.place_id
         if (place.rating !== null) patch.rating = place.rating
         if (place.rating_count !== null) patch.rating_count = place.rating_count
 
-        // Build the update payload — include image_url if Places returned a photo
-        // and the card doesn't already have one.
-        const update: Record<string, unknown> = { metadata: patch }
+        const update: { metadata: Record<string, unknown>; image_url?: string } = { metadata: patch }
         if (place.photo_url && !card.image_url) {
           update.image_url = place.photo_url
         }
@@ -99,12 +103,11 @@ export async function POST(
           .update(update)
           .eq('id', card.id)
         if (updateError) {
-          return { id: card.id, title: card.title, query, status: 'error', error: updateError.message }
+          return { id: card.id, title: card.title, status: 'error', error: updateError.message }
         }
         return {
           id: card.id,
           title: card.title,
-          query,
           status: 'ok',
           rating: place.rating,
           rating_count: place.rating_count,
@@ -113,7 +116,6 @@ export async function POST(
         return {
           id: card.id,
           title: card.title,
-          query,
           status: 'error',
           error: err instanceof Error ? err.message : String(err),
         }
@@ -121,33 +123,12 @@ export async function POST(
     })
   )
 
-  // Debug: do one direct Google Places call so we can see the raw API status
-  // (e.g. REQUEST_DENIED if Places API isn't enabled, INVALID_REQUEST, etc.)
-  let debugRaw: unknown = null
-  if (needsBackfill.length > 0 && process.env.GOOGLE_PLACES_API_KEY) {
-    const debugQuery = `${needsBackfill[0].title} ${destination}`.trim()
-    try {
-      const debugRes = await fetch(
-        `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(debugQuery)}&inputtype=textquery&fields=photos,place_id,rating,user_ratings_total&key=${process.env.GOOGLE_PLACES_API_KEY}`
-      )
-      debugRaw = {
-        http_status: debugRes.status,
-        body: await debugRes.json(),
-        query: debugQuery,
-      }
-    } catch (err) {
-      debugRaw = { error: err instanceof Error ? err.message : String(err) }
-    }
-  }
-
   return NextResponse.json({
-    has_places_api_key: Boolean(process.env.GOOGLE_PLACES_API_KEY),
     total_cards: cards?.length ?? 0,
     needs_backfill: needsBackfill.length,
     updated: results.filter(r => r.status === 'ok').length,
     no_data: results.filter(r => r.status === 'no_places_data').length,
     errors: results.filter(r => r.status === 'error').length,
-    debug_first_call: debugRaw,
     results,
   })
 }
