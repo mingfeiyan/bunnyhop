@@ -143,6 +143,19 @@ body {
 .pill-btn-sm { font-size: 11px; padding: 6px 20px; }
 .pill-btn-md { font-size: 12px; padding: 8px 24px; }
 
+/* Collapsible section — wraps <details>/<summary> to look like DaySection.
+   Used for the "Past" trips bucket so it folds out of sight by default. */
+.collapsible-section summary {
+  list-style: none;
+  cursor: pointer;
+}
+.collapsible-section summary::-webkit-details-marker {
+  display: none;
+}
+/* Show/hide toggle text inside the summary swaps based on open state */
+.collapsible-section[open] .when-closed { display: none; }
+.collapsible-section:not([open]) .when-open { display: none; }
+
 /* The toggle button itself — sits fixed top-right, generic enough to look
    reasonable in either theme. */
 .ui-theme-toggle {

@@ -163,48 +163,85 @@ export default async function TripsPage() {
                   : bucket === 'undated' ? undated
                   : past
                 if (list.length === 0) return null
+
+                const tripCards = list.map(trip => {
+                  const time = trip.date_start
+                    ? new Date(trip.date_start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                    : ''
+                  const dateStr = trip.date_start && trip.date_end
+                    ? `${new Date(trip.date_start).toLocaleDateString()} — ${new Date(trip.date_end).toLocaleDateString()}`
+                    : 'dates pending'
+                  const details = [trip.destination, dateStr].filter(Boolean).join(' · ')
+                  return (
+                    <Link
+                      key={trip.id}
+                      href={`/trips/${trip.id}`}
+                      style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}
+                    >
+                      {trip.cover_image_url && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={trip.cover_image_url}
+                          alt={trip.destination ?? trip.title}
+                          style={{
+                            width: '100%',
+                            height: '160px',
+                            objectFit: 'cover',
+                            display: 'block',
+                            borderBottom: '1px solid var(--stroke)',
+                          }}
+                        />
+                      )}
+                      <EventCard
+                        time={time}
+                        title={trip.title}
+                        details={details}
+                      />
+                    </Link>
+                  )
+                })
+
+                const tag = `${list.length} ${list.length === 1 ? 'trip' : 'trips'}`
+
+                // Past trips fold behind a native <details>/<summary> element
+                // so they don't clutter the main view. The summary mimics the
+                // DaySection header (soft-tinted bg, serif title, mono tag)
+                // and adds a "show" / "hide" affordance that swaps via CSS
+                // based on the [open] state. No client component needed.
+                if (bucket === 'past') {
+                  return (
+                    <details key={bucket} className="collapsible-section border-b border-stroke">
+                      <summary
+                        className="flex items-baseline justify-between px-5 py-3"
+                        style={{ background: 'var(--stroke-soft)' }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-serif), Georgia, serif',
+                            fontSize: '18px',
+                            fontWeight: 700,
+                          }}
+                        >
+                          {BUCKET_LABEL[bucket]}
+                        </span>
+                        <span className="label-mono">
+                          {tag}
+                          <span className="when-closed"> · show</span>
+                          <span className="when-open"> · hide</span>
+                        </span>
+                      </summary>
+                      <div>{tripCards}</div>
+                    </details>
+                  )
+                }
+
                 return (
                   <DaySection
                     key={bucket}
                     title={BUCKET_LABEL[bucket]}
-                    tag={`${list.length} ${list.length === 1 ? 'trip' : 'trips'}`}
+                    tag={tag}
                   >
-                    {list.map(trip => {
-                      const time = trip.date_start
-                        ? new Date(trip.date_start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-                        : ''
-                      const dateStr = trip.date_start && trip.date_end
-                        ? `${new Date(trip.date_start).toLocaleDateString()} — ${new Date(trip.date_end).toLocaleDateString()}`
-                        : 'dates pending'
-                      const details = [trip.destination, dateStr].filter(Boolean).join(' · ')
-                      return (
-                        <Link
-                          key={trip.id}
-                          href={`/trips/${trip.id}`}
-                          style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}
-                        >
-                          {trip.cover_image_url && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={trip.cover_image_url}
-                              alt={trip.destination ?? trip.title}
-                              style={{
-                                width: '100%',
-                                height: '160px',
-                                objectFit: 'cover',
-                                display: 'block',
-                                borderBottom: '1px solid var(--stroke)',
-                              }}
-                            />
-                          )}
-                          <EventCard
-                            time={time}
-                            title={trip.title}
-                            details={details}
-                          />
-                        </Link>
-                      )
-                    })}
+                    {tripCards}
                   </DaySection>
                 )
               })}
