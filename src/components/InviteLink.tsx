@@ -4,9 +4,40 @@ import { useState } from 'react'
 
 const API_DOCS_URL = 'https://github.com/mingfeiyan/bunnyhop/blob/main/docs/timeline-api.md'
 
+function buildAgentPrompt(endpoint: string): string {
+  return `When you find confirmed flight or hotel bookings for my trip, POST them as structured JSON to:
+
+${endpoint}
+
+Schema (each event):
+{
+  "type": "flight" | "hotel",
+  "title": "short label, e.g. 'United UA115 SFO → PPT'",
+  "start_date": "YYYY-MM-DD",            // flight: depart date | hotel: check-in
+  "end_date": "YYYY-MM-DD",              // optional. flight: arrival if next day | hotel: check-out
+  "start_time": "HH:MM",                 // 24-hour, optional. flight: depart | hotel: check-in
+  "end_time": "HH:MM",                   // 24-hour, optional. flight: arrival | hotel: check-out
+  "origin": "SFO",                       // flights only, IATA code
+  "destination": "PPT",                  // flights only, IATA code
+  "reference": "UA115",                  // flight number or confirmation code
+  "details": { "any extra context": "seats, fare, confirmation, address" }
+}
+
+You can POST a single object or an array of objects. Batching is faster.
+
+Rules:
+- Dates MUST be ISO YYYY-MM-DD ("2026-06-27", not "June 27 2026").
+- Times MUST be 24-hour HH:MM ("13:25", not "1:25 PM").
+- Round-trip flights = TWO entries (one outbound, one return).
+- Only submit confirmed bookings — skip quotes, holds, waitlists.
+- The invite code in the URL is the auth. No API key needed.
+
+Full API reference: ${API_DOCS_URL}`
+}
+
 export default function InviteLink({ inviteCode }: { inviteCode: string }) {
   const [copiedLink, setCopiedLink] = useState(false)
-  const [copiedEndpoint, setCopiedEndpoint] = useState(false)
+  const [copiedPrompt, setCopiedPrompt] = useState(false)
   const [showAgent, setShowAgent] = useState(false)
 
   async function copyLink() {
@@ -16,11 +47,11 @@ export default function InviteLink({ inviteCode }: { inviteCode: string }) {
     setTimeout(() => setCopiedLink(false), 2000)
   }
 
-  async function copyEndpoint() {
+  async function copyAgentPrompt() {
     const endpoint = `${window.location.origin}/api/trips/by-code/${inviteCode}/timeline-events`
-    await navigator.clipboard.writeText(endpoint)
-    setCopiedEndpoint(true)
-    setTimeout(() => setCopiedEndpoint(false), 2000)
+    await navigator.clipboard.writeText(buildAgentPrompt(endpoint))
+    setCopiedPrompt(true)
+    setTimeout(() => setCopiedPrompt(false), 2000)
   }
 
   const endpoint = typeof window !== 'undefined'
@@ -43,23 +74,27 @@ export default function InviteLink({ inviteCode }: { inviteCode: string }) {
       </div>
 
       {showAgent && (
-        <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+        <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
           <p className="text-xs text-gray-600">
-            Tell your AI agent to POST confirmed bookings to this endpoint:
+            Paste these instructions into your AI agent so it can submit confirmed bookings directly to your timeline:
           </p>
-          <div className="flex items-start gap-2">
-            <code className="text-[11px] bg-white border rounded px-2 py-1 flex-1 break-all font-mono text-gray-800">
+
+          <button
+            onClick={copyAgentPrompt}
+            className="w-full bg-blue-600 text-white text-xs font-medium px-3 py-2 rounded-lg hover:bg-blue-700 transition"
+          >
+            {copiedPrompt ? '✓ Copied agent instructions' : 'Copy agent instructions'}
+          </button>
+
+          <details className="text-[11px] text-gray-500">
+            <summary className="cursor-pointer hover:text-gray-700">Just the endpoint URL</summary>
+            <code className="block mt-1 bg-white border rounded px-2 py-1 break-all font-mono text-gray-800">
               {endpoint}
             </code>
-            <button
-              onClick={copyEndpoint}
-              className="text-xs text-blue-600 hover:underline shrink-0 mt-1"
-            >
-              {copiedEndpoint ? 'Copied!' : 'Copy'}
-            </button>
-          </div>
+          </details>
+
           <p className="text-xs text-gray-600">
-            Full API reference with schema and examples:{' '}
+            Full reference:{' '}
             <a
               href={API_DOCS_URL}
               target="_blank"
