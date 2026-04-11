@@ -29,10 +29,11 @@ type Props = {
   cards: Card[]
   votes: Record<string, Swipe['preference']>
   currentUserId: string
+  destination: string
   onVoteChange: (cardId: string, preference: Swipe['preference']) => void
 }
 
-export default function SwipeReview({ cards, votes, currentUserId, onVoteChange }: Props) {
+export default function SwipeReview({ cards, votes, currentUserId, destination, onVoteChange }: Props) {
   const supabase = createClient()
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -131,7 +132,7 @@ export default function SwipeReview({ cards, votes, currentUserId, onVoteChange 
 
             {isExpanded && (
               <div className="border-t border-gray-100 p-3 bg-gray-50">
-                <FlipCard card={card} />
+                <FlipCard card={card} destination={destination} />
               </div>
             )}
           </div>

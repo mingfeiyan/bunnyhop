@@ -18,11 +18,19 @@ export default function SwipePage() {
   const [loading, setLoading] = useState(true)
   const [showAddCard, setShowAddCard] = useState(false)
   const [mode, setMode] = useState<'swipe' | 'review'>('swipe')
+  const [destination, setDestination] = useState('')
 
   const loadCards = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     setCurrentUserId(user.id)
+
+    const { data: trip } = await supabase
+      .from('trips')
+      .select('destination')
+      .eq('id', tripId)
+      .single()
+    setDestination((trip?.destination as string) ?? '')
 
     const { data: fetchedCards } = await supabase
       .from('cards')
@@ -103,7 +111,7 @@ export default function SwipePage() {
         )}
 
         {effectiveMode === 'swipe' && !allSwiped && (
-          <SwipeDeck cards={unswipedCards} onSwipe={handleSwipe} />
+          <SwipeDeck cards={unswipedCards} destination={destination} onSwipe={handleSwipe} />
         )}
 
         {effectiveMode === 'review' && currentUserId && (
@@ -118,6 +126,7 @@ export default function SwipePage() {
               cards={allCards}
               votes={votes}
               currentUserId={currentUserId}
+              destination={destination}
               onVoteChange={(cardId, preference) => {
                 setVotes(prev => ({ ...prev, [cardId]: preference }))
               }}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { getReviewUrl } from '@/lib/review-url'
 import type { Card } from '@/types'
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -9,8 +10,16 @@ const CATEGORY_COLORS: Record<string, string> = {
   sightseeing: 'bg-green-500',
 }
 
-export default function FlipCard({ card }: { card: Card }) {
+type Props = {
+  card: Card
+  destination: string
+}
+
+export default function FlipCard({ card, destination }: Props) {
   const [flipped, setFlipped] = useState(false)
+  const reviewUrl = getReviewUrl(card, destination)
+  const rating = card.metadata.rating
+  const ratingCount = card.metadata.rating_count
 
   return (
     <div
@@ -69,7 +78,16 @@ export default function FlipCard({ card }: { card: Card }) {
           <div className={`${CATEGORY_COLORS[card.category]} text-white text-xs font-medium px-2.5 py-1 rounded-full capitalize self-start mb-3`}>
             {card.category}
           </div>
-          <h2 className="text-xl font-bold mb-3">{card.title}</h2>
+          <h2 className="text-xl font-bold mb-1">{card.title}</h2>
+
+          {/* Rating chip — hidden if no rating data */}
+          {typeof rating === 'number' && (
+            <p className="text-sm text-gray-600 mb-3">
+              <span className="text-amber-500">★</span> {rating.toFixed(1)}
+              {typeof ratingCount === 'number' && ` · ${ratingCount.toLocaleString()} reviews`}
+            </p>
+          )}
+
           {card.metadata.why_this && (
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-gray-500 mb-1">Why this?</h3>
@@ -87,15 +105,19 @@ export default function FlipCard({ card }: { card: Card }) {
             {card.metadata.booking_required && <p>📋 Booking required</p>}
             {card.metadata.duration && <p>⏱️ {card.metadata.duration}</p>}
           </div>
-          {card.metadata.review_snippets && card.metadata.review_snippets.length > 0 && (
-            <div className="mt-4 border-t pt-3">
-              <h3 className="text-sm font-semibold text-gray-500 mb-2">What people say</h3>
-              {card.metadata.review_snippets.map((review, i) => (
-                <p key={i} className="text-xs text-gray-500 italic mb-1">"{review}"</p>
-              ))}
-            </div>
-          )}
-          <p className="text-xs text-gray-400 mt-3 text-center">Tap to flip back</p>
+
+          {/* Review link — always present, target depends on category */}
+          <a
+            href={reviewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="mt-3 text-center text-sm text-blue-600 hover:underline"
+          >
+            View reviews & photos →
+          </a>
+
+          <p className="text-xs text-gray-400 mt-2 text-center">Tap to flip back</p>
         </div>
       </div>
     </div>

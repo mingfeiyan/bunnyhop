@@ -8,10 +8,11 @@ type SwipeDirection = 'want' | 'pass' | 'indifferent'
 
 type Props = {
   cards: Card[]
+  destination: string
   onSwipe: (cardId: string, preference: SwipeDirection) => void
 }
 
-export default function SwipeDeck({ cards, onSwipe }: Props) {
+export default function SwipeDeck({ cards, destination, onSwipe }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
@@ -92,7 +93,7 @@ export default function SwipeDeck({ cards, onSwipe }: Props) {
       <div className="relative aspect-[3/4]">
         {currentIndex + 1 < cards.length && (
           <div className="absolute inset-0 scale-95 opacity-50">
-            <FlipCard card={cards[currentIndex + 1]} />
+            <FlipCard card={cards[currentIndex + 1]} destination={destination} />
           </div>
         )}
 
@@ -117,7 +118,7 @@ export default function SwipeDeck({ cards, onSwipe }: Props) {
             )}
           </div>
 
-          <FlipCard card={currentCard} />
+          <FlipCard card={currentCard} destination={destination} />
         </div>
       </div>
 

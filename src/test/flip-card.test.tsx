@@ -23,13 +23,13 @@ const mockCard = {
 
 describe('FlipCard', () => {
   it('renders the card front with title and tagline', () => {
-    render(<FlipCard card={mockCard} />)
+    render(<FlipCard card={mockCard} destination="Bora Bora" />)
     expect(screen.getAllByText('Matiras Beach').length).toBeGreaterThan(0)
     expect(screen.getByText('The best beach you will ever see')).toBeInTheDocument()
   })
 
   it('shows the back with details after clicking', () => {
-    render(<FlipCard card={mockCard} />)
+    render(<FlipCard card={mockCard} destination="Bora Bora" />)
     fireEvent.click(screen.getAllByText('Matiras Beach')[0])
     expect(screen.getByText(/Perfect for families/)).toBeInTheDocument()
   })
