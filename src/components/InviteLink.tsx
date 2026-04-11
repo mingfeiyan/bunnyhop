@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import PillButton from '@/components/ui/PillButton'
 import MonoLabel from '@/components/ui/MonoLabel'
 
@@ -37,7 +38,15 @@ Rules:
 Full API reference: ${API_DOCS_URL}`
 }
 
-export default function InviteLink({ inviteCode }: { inviteCode: string }) {
+type Props = {
+  inviteCode: string
+  // Optional pills rendered before the copy/agent buttons in the editorial
+  // tree, so callers can append a "edit details" affordance into the same
+  // single-line action row instead of stacking it above.
+  leadingButtons?: ReactNode
+}
+
+export default function InviteLink({ inviteCode, leadingButtons }: Props) {
   const [copiedLink, setCopiedLink] = useState(false)
   const [copiedPrompt, setCopiedPrompt] = useState(false)
   const [showAgent, setShowAgent] = useState(false)
@@ -117,7 +126,8 @@ export default function InviteLink({ inviteCode }: { inviteCode: string }) {
 
       {/* === Editorial tree === */}
       <div className="theme-editorial-tree">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {leadingButtons}
           <PillButton onClick={copyLink}>
             {copiedLink ? 'copied' : 'copy invite link'}
           </PillButton>

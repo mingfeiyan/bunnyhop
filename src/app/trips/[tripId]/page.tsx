@@ -12,7 +12,6 @@ import OverviewGrid from '@/components/ui/OverviewGrid'
 import DaySection from '@/components/ui/DaySection'
 import EventCard from '@/components/ui/EventCard'
 import PillButton from '@/components/ui/PillButton'
-import MonoLabel from '@/components/ui/MonoLabel'
 import { tripCountdown } from '@/lib/trip-countdown'
 
 export default async function TripHubPage({ params }: { params: Promise<{ tripId: string }> }) {
@@ -146,17 +145,15 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
             ]}
           />
 
-          {/* Edit trip details — organizer-only PillButton next to the meta strip */}
-          {isOrganizer && (
-            <div className="px-5 pb-3">
-              <EditTripDetailsButton trip={trip} isOrganizer={isOrganizer} />
-            </div>
-          )}
-
-          {/* Invite link section */}
-          <section className="px-5 py-4 border-b border-stroke">
-            <MonoLabel className="block mb-2">invite</MonoLabel>
-            <InviteLink inviteCode={trip.invite_code} />
+          {/* Action row: edit details (organizer-only) + invite buttons all
+              on a single line. The leadingButtons slot on InviteLink puts the
+              EditTripDetailsButton inside the same flex container so all three
+              pills wrap together on narrow screens. */}
+          <section className="px-5 py-5 border-b border-stroke">
+            <InviteLink
+              inviteCode={trip.invite_code}
+              leadingButtons={<EditTripDetailsButton trip={trip} isOrganizer={isOrganizer} />}
+            />
           </section>
 
           {/* Main actions: timeline, swipe/generate, results */}
