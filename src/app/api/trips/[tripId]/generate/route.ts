@@ -63,14 +63,14 @@ export async function POST(
   // Generate cards
   let generated
   try {
-    generated = await generateCards(
-      trip.destination,
-      trip.date_start,
-      trip.date_end,
-      contexts ?? [],
-      timelineEvents ?? [],
-      existingTitles
-    )
+    generated = await generateCards({
+      destination: trip.destination,
+      dateStart: trip.date_start,
+      dateEnd: trip.date_end,
+      contexts: contexts ?? [],
+      timelineEvents: timelineEvents ?? [],
+      existingTitles,
+    })
   } catch (err) {
     console.error('Card generation failed:', err)
     return NextResponse.json({ error: `Card generation failed: ${err}`, count: 0 }, { status: 500 })

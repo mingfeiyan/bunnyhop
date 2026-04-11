@@ -81,15 +81,22 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
     }
     const positions: RenderPosition[] = []
     for (const ev of allEvents) {
-      if (ev.type === 'flight') {
-        positions.push({ event: ev, date: ev.start_date, phase: 'flight' })
-      } else if (ev.type === 'activity') {
-        positions.push({ event: ev, date: ev.start_date, phase: 'activity' })
-      } else {
-        // hotel
-        positions.push({ event: ev, date: ev.start_date, phase: 'check_in' })
-        if (ev.end_date) {
-          positions.push({ event: ev, date: ev.end_date, phase: 'check_out' })
+      switch (ev.type) {
+        case 'flight':
+          positions.push({ event: ev, date: ev.start_date, phase: 'flight' })
+          break
+        case 'activity':
+          positions.push({ event: ev, date: ev.start_date, phase: 'activity' })
+          break
+        case 'hotel':
+          positions.push({ event: ev, date: ev.start_date, phase: 'check_in' })
+          if (ev.end_date) {
+            positions.push({ event: ev, date: ev.end_date, phase: 'check_out' })
+          }
+          break
+        default: {
+          const _exhaustive: never = ev.type
+          void _exhaustive
         }
       }
     }

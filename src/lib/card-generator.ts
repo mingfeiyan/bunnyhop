@@ -10,22 +10,29 @@ const anthropic = new Anthropic({
 // Includes location/address/raw context where available so Claude has enough
 // signal to suggest nearby things and de-duplicate against confirmed activities.
 function summarizeTimelineEvent(ev: TimelineEventRow): string {
-  if (ev.type === 'flight') {
-    const route = ev.origin && ev.destination ? `${ev.origin} → ${ev.destination}` : ''
-    const time = ev.start_time ? ` at ${formatTime12h(ev.start_time)}` : ''
-    return `[flight] ${ev.start_date}${time} — ${ev.title}${route ? ` (${route})` : ''}`
+  switch (ev.type) {
+    case 'flight': {
+      const route = ev.origin && ev.destination ? `${ev.origin} → ${ev.destination}` : ''
+      const time = ev.start_time ? ` at ${formatTime12h(ev.start_time)}` : ''
+      return `[flight] ${ev.start_date}${time} — ${ev.title}${route ? ` (${route})` : ''}`
+    }
+    case 'hotel': {
+      const range = ev.end_date ? `${ev.start_date} → ${ev.end_date}` : ev.start_date
+      const address = (ev.details?.address as string) || ''
+      return `[hotel] ${range} — ${ev.title}${address ? ` (${address})` : ''}`
+    }
+    case 'activity': {
+      const time = ev.start_time ? ` at ${formatTime12h(ev.start_time)}` : ''
+      const location = (ev.details?.location as string) || ''
+      const organizer = (ev.details?.organizer as string) || ''
+      const extras = [location, organizer].filter(Boolean).join(', ')
+      return `[activity] ${ev.start_date}${time} — ${ev.title}${extras ? ` (${extras})` : ''}`
+    }
+    default: {
+      const _exhaustive: never = ev.type
+      return `[unknown:${_exhaustive}] ${ev.start_date} — ${ev.title}`
+    }
   }
-  if (ev.type === 'hotel') {
-    const range = ev.end_date ? `${ev.start_date} → ${ev.end_date}` : ev.start_date
-    const address = (ev.details?.address as string) || ''
-    return `[hotel] ${range} — ${ev.title}${address ? ` (${address})` : ''}`
-  }
-  // activity
-  const time = ev.start_time ? ` at ${formatTime12h(ev.start_time)}` : ''
-  const location = (ev.details?.location as string) || ''
-  const organizer = (ev.details?.organizer as string) || ''
-  const extras = [location, organizer].filter(Boolean).join(', ')
-  return `[activity] ${ev.start_date}${time} — ${ev.title}${extras ? ` (${extras})` : ''}`
 }
 
 type GeneratedCard = {
@@ -46,14 +53,25 @@ type GeneratedCard = {
   }
 }
 
-export async function generateCards(
-  destination: string,
-  dateStart: string,
-  dateEnd: string,
-  contexts: TripContext[],
-  timelineEvents: TimelineEventRow[] = [],
-  existingTitles: string[] = []
-): Promise<GeneratedCard[]> {
+export type GenerateCardsOptions = {
+  destination: string
+  dateStart: string
+  dateEnd: string
+  contexts?: TripContext[]
+  timelineEvents?: TimelineEventRow[]
+  existingTitles?: string[]
+}
+
+export async function generateCards(opts: GenerateCardsOptions): Promise<GeneratedCard[]> {
+  const {
+    destination,
+    dateStart,
+    dateEnd,
+    contexts = [],
+    timelineEvents = [],
+    existingTitles = [],
+  } = opts
+
   const contextSummary = contexts
     .map(c => `[${c.type}] ${c.raw_text}`)
     .join('\n')

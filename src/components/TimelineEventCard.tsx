@@ -38,18 +38,33 @@ export default function TimelineEventCard({ event, phase, familyName, familyColo
   if (deleted) return null
 
   const colors = familyColor ? getColorClasses(familyColor) : null
-  const icon = phase === 'flight' ? '✈️' : phase === 'activity' ? '🎟️' : '🏨'
 
+  // Compute icon and action label exhaustively over the Phase union so a future
+  // phase forces an explicit branch.
+  let icon: string
   let action: string
-  if (phase === 'flight') {
-    action = familyName ? `${familyName} flight` : 'Flight'
-  } else if (phase === 'check_in') {
-    action = familyName ? `${familyName} checks in` : 'Hotel check-in'
-  } else if (phase === 'check_out') {
-    action = familyName ? `${familyName} checks out` : 'Hotel check-out'
-  } else {
-    // activity
-    action = familyName ? `${familyName} activity` : 'Activity'
+  switch (phase) {
+    case 'flight':
+      icon = '✈️'
+      action = familyName ? `${familyName} flight` : 'Flight'
+      break
+    case 'check_in':
+      icon = '🏨'
+      action = familyName ? `${familyName} checks in` : 'Hotel check-in'
+      break
+    case 'check_out':
+      icon = '🏨'
+      action = familyName ? `${familyName} checks out` : 'Hotel check-out'
+      break
+    case 'activity':
+      icon = '🎟️'
+      action = familyName ? `${familyName} activity` : 'Activity'
+      break
+    default: {
+      const _exhaustive: never = phase
+      icon = '📍'
+      action = _exhaustive
+    }
   }
 
   // For check_out, use a simpler description since it's the same hotel
