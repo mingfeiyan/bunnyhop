@@ -1,5 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { autofillTripFromEvents, generateCoverIfNeeded } from '@/lib/trip-autofill'
+import { checkApiSecurity } from '@/lib/api-security'
+import { byCodeLimiter } from '@/lib/rate-limit'
 import { NextResponse } from 'next/server'
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -49,6 +51,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ inviteCode: string }> }
 ) {
+  const securityError = await checkApiSecurity(request, { rateLimiter: byCodeLimiter, checkOrigin: false })
+  if (securityError) return securityError
+
   const { inviteCode } = await params
   const supabase = createServiceClient()
 

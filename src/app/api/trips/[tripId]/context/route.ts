@@ -2,12 +2,17 @@ import { createClient } from '@/lib/supabase/server'
 import { parseContext } from '@/lib/claude'
 import { parsedEntryToTimelineEvent } from '@/lib/timeline-events'
 import { autofillTripFromEvents, generateCoverIfNeeded } from '@/lib/trip-autofill'
+import { checkApiSecurity } from '@/lib/api-security'
+import { byCodeLimiter } from '@/lib/rate-limit'
 import { NextResponse } from 'next/server'
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ tripId: string }> }
 ) {
+  const securityError = await checkApiSecurity(request, { rateLimiter: byCodeLimiter })
+  if (securityError) return securityError
+
   const { tripId } = await params
   const supabase = await createClient()
 

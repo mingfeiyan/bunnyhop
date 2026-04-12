@@ -3,10 +3,15 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { checkApiSecurity } from '@/lib/api-security'
+import { adminLimiter } from '@/lib/rate-limit'
 import { NextResponse } from 'next/server'
 import { verifyAdmin } from '@/lib/admin'
 
 export async function POST(request: Request) {
+  const securityError = await checkApiSecurity(request, { rateLimiter: adminLimiter })
+  if (securityError) return securityError
+
   const supabase = await createClient()
   const admin = await verifyAdmin(supabase)
   if (!admin) return NextResponse.json({ error: 'Not authorized' }, { status: 403 })

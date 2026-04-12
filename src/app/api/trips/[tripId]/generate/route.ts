@@ -1,12 +1,17 @@
 import { createClient } from '@/lib/supabase/server'
 import { generateCards } from '@/lib/card-generator'
 import { searchPlace } from '@/lib/google-places'
+import { checkApiSecurity } from '@/lib/api-security'
+import { byCodeLimiter } from '@/lib/rate-limit'
 import { NextResponse } from 'next/server'
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ tripId: string }> }
 ) {
+  const securityError = await checkApiSecurity(request, { rateLimiter: byCodeLimiter })
+  if (securityError) return securityError
+
   const { tripId } = await params
   const supabase = await createClient()
 

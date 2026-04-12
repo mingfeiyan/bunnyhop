@@ -10,12 +10,17 @@
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { generateCards } from '@/lib/card-generator'
+import { checkApiSecurity } from '@/lib/api-security'
+import { byCodeLimiter } from '@/lib/rate-limit'
 import { NextResponse } from 'next/server'
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ inviteCode: string }> }
 ) {
+  const securityError = await checkApiSecurity(request, { rateLimiter: byCodeLimiter, checkOrigin: false })
+  if (securityError) return securityError
+
   const { inviteCode } = await params
   const supabase = createServiceClient()
 

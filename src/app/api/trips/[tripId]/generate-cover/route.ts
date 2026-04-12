@@ -12,12 +12,17 @@
 
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { generateAndStoreCover } from '@/lib/trip-cover'
+import { checkApiSecurity } from '@/lib/api-security'
+import { byCodeLimiter } from '@/lib/rate-limit'
 import { NextResponse } from 'next/server'
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ tripId: string }> }
 ) {
+  const securityError = await checkApiSecurity(request, { rateLimiter: byCodeLimiter })
+  if (securityError) return securityError
+
   const { tripId } = await params
 
   // Auth: require a logged-in user who is a participant of this trip.
