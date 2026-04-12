@@ -78,15 +78,12 @@ export default function LoginPage() {
       }>
         <LoginForm />
       </Suspense>
-      <div className="mt-8 flex gap-4">
-        <a href="/privacy" className="label-mono" style={{ color: 'var(--stroke)', opacity: 0.5, textDecoration: 'none' }}>
-          privacy
-        </a>
-        <span className="label-mono" style={{ opacity: 0.3 }}>·</span>
-        <a href="/terms" className="label-mono" style={{ color: 'var(--stroke)', opacity: 0.5, textDecoration: 'none' }}>
-          terms
-        </a>
-      </div>
+      <p className="mt-8 detail-mono text-center" style={{ opacity: 0.5, maxWidth: '280px' }}>
+        by signing in, you agree to our{' '}
+        <a href="/terms" style={{ color: 'var(--stroke)', textDecoration: 'underline' }}>terms</a>
+        {' '}and{' '}
+        <a href="/privacy" style={{ color: 'var(--stroke)', textDecoration: 'underline' }}>privacy policy</a>
+      </p>
     </div>
   )
 }

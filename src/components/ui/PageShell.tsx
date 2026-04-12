@@ -32,6 +32,17 @@ export default function PageShell({ children, back, maxWidth = 'md' }: Props) {
           </div>
         )}
         {children}
+
+        {/* Site-wide footer */}
+        <footer className="px-5 py-6 mt-8 text-center">
+          <a href="/privacy" className="label-mono" style={{ color: 'var(--stroke)', opacity: 0.35, textDecoration: 'none' }}>
+            privacy
+          </a>
+          <span className="label-mono mx-2" style={{ opacity: 0.2 }}>·</span>
+          <a href="/terms" className="label-mono" style={{ color: 'var(--stroke)', opacity: 0.35, textDecoration: 'none' }}>
+            terms
+          </a>
+        </footer>
       </div>
     </div>
   )
