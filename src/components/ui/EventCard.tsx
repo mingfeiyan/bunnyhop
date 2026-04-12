@@ -31,7 +31,7 @@ export default function EventCard({
       className="grid gap-4 px-5 py-5 border-b border-stroke last:border-b-0"
       style={{
         gridTemplateColumns: '60px 1fr',
-        borderLeft: accentColor ? `3px solid ${accentColor}` : undefined,
+        borderLeft: accentColor ? `5px solid ${accentColor}` : undefined,
       }}
     >
       <div className="detail-mono pt-1">{time ?? ''}</div>

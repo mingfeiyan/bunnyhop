@@ -20,6 +20,13 @@ type Props = {
 // Pick the kicker label, action verb, and emoji icon based on the parent
 // event type plus the current phase. Hotel and Airbnb both use "check-in" /
 // "check-out"; cruise uses "board" / "disembark". Each has its own emoji.
+// Append the family name to the kicker when known, so the family identity
+// is visible as a label (e.g., "flight · Yan Family"). Without this the
+// only visual cue was the 5px accent border, which was too subtle.
+function withFamily(base: string, familyName: string | null): string {
+  return familyName ? `${base} · ${familyName}` : base
+}
+
 function describePhase(
   event: TimelineEventRow,
   phase: Phase,
@@ -29,53 +36,53 @@ function describePhase(
     case 'flight':
       return {
         icon: '✈️',
-        kicker: 'flight',
+        kicker: withFamily('flight', familyName),
         action: familyName ? `${familyName} flight` : 'Flight',
       }
     case 'activity':
       return {
         icon: '🎟️',
-        kicker: 'activity',
+        kicker: withFamily('activity', familyName),
         action: familyName ? `${familyName} activity` : 'Activity',
       }
     case 'check_in':
       if (event.type === 'cruise') {
         return {
           icon: '🛳️',
-          kicker: 'cruise · board',
+          kicker: withFamily('cruise · board', familyName),
           action: familyName ? `${familyName} boards` : 'Board cruise',
         }
       }
       if (event.type === 'airbnb') {
         return {
           icon: '🏡',
-          kicker: 'airbnb · check-in',
+          kicker: withFamily('airbnb · check-in', familyName),
           action: familyName ? `${familyName} checks in` : 'Airbnb check-in',
         }
       }
       return {
         icon: '🏨',
-        kicker: 'hotel · check-in',
+        kicker: withFamily('hotel · check-in', familyName),
         action: familyName ? `${familyName} checks in` : 'Hotel check-in',
       }
     case 'check_out':
       if (event.type === 'cruise') {
         return {
           icon: '🛳️',
-          kicker: 'cruise · disembark',
+          kicker: withFamily('cruise · disembark', familyName),
           action: familyName ? `${familyName} disembarks` : 'Disembark cruise',
         }
       }
       if (event.type === 'airbnb') {
         return {
           icon: '🏡',
-          kicker: 'airbnb · check-out',
+          kicker: withFamily('airbnb · check-out', familyName),
           action: familyName ? `${familyName} checks out` : 'Airbnb check-out',
         }
       }
       return {
         icon: '🏨',
-        kicker: 'hotel · check-out',
+        kicker: withFamily('hotel · check-out', familyName),
         action: familyName ? `${familyName} checks out` : 'Hotel check-out',
       }
     default: {
@@ -89,11 +96,12 @@ function describePhase(
 // address (the address is the new bit — user wants to see it on the card).
 // For check_out: nothing extra (the title says it all).
 // For flight/activity: the standard timeline-events description.
-function buildDetails(event: TimelineEventRow, phase: Phase, familyName: string | null): string | null {
-  const lead = familyName ? [familyName] : []
-
+// Build the editorial details string. Family name is now in the kicker
+// label (via withFamily), so it's NOT repeated here — the details line
+// focuses on the booking-specific info (nights, address, route, times).
+function buildDetails(event: TimelineEventRow, phase: Phase): string | null {
   if (phase === 'check_out') {
-    return lead.length > 0 ? lead.join(' · ') : null
+    return null
   }
 
   if (phase === 'check_in') {
@@ -105,7 +113,7 @@ function buildDetails(event: TimelineEventRow, phase: Phase, familyName: string 
       : null
     const nightsStr = nights ? `${nights} night${nights !== 1 ? 's' : ''}` : ''
     const address = (event.details?.address as string) || ''
-    const parts = [...lead, nightsStr, address].filter(Boolean)
+    const parts = [nightsStr, address].filter(Boolean)
     return parts.length > 0 ? parts.join(' · ') : null
   }
 
@@ -114,7 +122,7 @@ function buildDetails(event: TimelineEventRow, phase: Phase, familyName: string 
     const timeParts: string[] = []
     if (event.start_time) timeParts.push(`depart ${formatTime12h(event.start_time)}`)
     if (event.end_time) timeParts.push(`arrive ${formatTime12h(event.end_time)}`)
-    const parts = [...lead, route, timeParts.join(', '), event.reference].filter(Boolean)
+    const parts = [route, timeParts.join(', '), event.reference].filter(Boolean)
     return parts.length > 0 ? parts.join(' · ') : null
   }
 
@@ -124,7 +132,7 @@ function buildDetails(event: TimelineEventRow, phase: Phase, familyName: string 
   if (event.end_time) timeParts.push(formatTime12h(event.end_time))
   const timeStr = timeParts.join(' – ')
   const location = (event.details?.location as string) || ''
-  const parts = [...lead, timeStr, location, event.reference].filter(Boolean)
+  const parts = [timeStr, location, event.reference].filter(Boolean)
   return parts.length > 0 ? parts.join(' · ') : null
 }
 
@@ -162,17 +170,8 @@ export default function TimelineEventCard({ event, phase, familyName, familyColo
       : ''
 
   const editorialAccent = familyColor ? getFamilyColor(familyColor) : null
-  const editorialDetails = buildDetails(event, phase, familyName)
-
-  // Default-tree description (legacy text — not currently visible since
-  // editorial is the only theme, but kept for parity until the dual-tree
-  // teardown commit removes the default tree from this component).
-  const legacyDescription =
-    phase === 'check_out'
-      ? null
-      : phase === 'check_in'
-        ? buildDetails(event, phase, null) // no family lead in legacy text
-        : buildDetails(event, phase, null)
+  const editorialDetails = buildDetails(event, phase)
+  const legacyDescription = buildDetails(event, phase)
 
   return (
     <>
