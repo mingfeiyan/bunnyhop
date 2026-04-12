@@ -4,34 +4,13 @@ import Link from 'next/link'
 import { computeOverlap, formatDateHeader } from '@/lib/timeline'
 import { tripCountdown } from '@/lib/trip-countdown'
 import { getUserFamilyMap } from '@/lib/family'
-import TimelineEventCard from '@/components/TimelineEventCard'
 import TimelineRealtimeWrapper from '@/components/TimelineRealtimeWrapper'
+import TimelineFilterableContent from '@/components/TimelineFilterableContent'
 import PageShell from '@/components/ui/PageShell'
 import PageHeader from '@/components/ui/PageHeader'
 import MetaStrip from '@/components/ui/MetaStrip'
 import OverviewGrid from '@/components/ui/OverviewGrid'
-import DaySection from '@/components/ui/DaySection'
-import MonoLabel from '@/components/ui/MonoLabel'
 import type { TripParticipant, TimelineEventRow } from '@/types'
-
-// One-word descriptor for a day, derived from the phases of its events.
-type Phase = 'flight' | 'check_in' | 'check_out' | 'activity'
-function dayTag(phases: Phase[]): string | null {
-  const set = new Set(phases)
-  if (set.has('flight') && set.has('check_in')) return 'arrival'
-  if (set.has('flight') && set.has('check_out')) return 'departure'
-  if (set.has('check_out') && set.has('check_in')) return 'transit'
-  if (set.size === 1) {
-    if (set.has('flight')) return 'travel day'
-    if (set.has('check_in')) return 'arrival'
-    if (set.has('check_out')) return 'checkout'
-    if (set.has('activity')) return 'exploration'
-  }
-  if (set.has('activity') && !set.has('flight') && !set.has('check_in') && !set.has('check_out')) {
-    return 'exploration'
-  }
-  return null
-}
 
 export default async function TimelinePage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params
@@ -157,9 +136,29 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
     }))
     const overlap = computeOverlap(familyDateRanges)
 
+    // Annotate each position with family + permission info so the client
+    // component can filter without needing the userFamilyMap.
+    type AnnotatedPosition = {
+      event: TimelineEventRow
+      date: string
+      phase: 'flight' | 'check_in' | 'check_out' | 'activity'
+      familyName: string | null
+      familyColor: string | null
+      canDelete: boolean
+    }
+    const annotated: AnnotatedPosition[] = positions.map(pos => {
+      const family = userFamilyMap.get(pos.event.added_by)
+      return {
+        ...pos,
+        familyName: family?.name ?? null,
+        familyColor: family?.color ?? null,
+        canDelete: isOrganizer || (currentUserId !== null && pos.event.added_by === currentUserId),
+      }
+    })
+
     // Group render positions by date
-    const dateGroups: { date: string; label: string; positions: RenderPosition[] }[] = []
-    for (const pos of positions) {
+    const dateGroups: { date: string; label: string; positions: AnnotatedPosition[] }[] = []
+    for (const pos of annotated) {
       const existing = dateGroups.find(g => g.date === pos.date)
       if (existing) {
         existing.positions.push(pos)
@@ -172,24 +171,23 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
       }
     }
 
-    // Determine where to insert the overlap banner
-    const overlapStartIndex = overlap
-      ? dateGroups.findIndex(g => g.date >= overlap.start)
-      : -1
+    // Unique families that have events on this trip (for filter pills)
+    const familySet = new Map<string, string>()
+    for (const pos of annotated) {
+      if (pos.familyName && !familySet.has(pos.familyName)) {
+        familySet.set(pos.familyName, pos.familyColor ?? '')
+      }
+    }
+    const tripFamilies = Array.from(familySet, ([name, color]) => ({ name, color }))
 
     const hasEvents = allEvents.length > 0
 
-    // Editorial-tree precomputed values. trip.destination / date_start /
-    // date_end may be null on a freshly-created trip with no bookings yet —
-    // guard the strip text and the countdown.
     const hasDates = Boolean(trip.date_start && trip.date_end)
     const dateRange = hasDates ? `${trip.date_start} — ${trip.date_end}` : null
     const countdown = tripCountdown(trip.date_start, trip.date_end)
     const headerTitle = trip.destination ?? trip.title ?? 'Trip'
     const metaLeft = dateRange ?? 'add bookings to fill in dates'
     const eventCount = allEvents.length
-    // Trip duration in days (inclusive). Falls back to the number of unique
-    // event dates if the trip has no date range set yet.
     const dayCount = hasDates
       ? Math.round((new Date(trip.date_end).getTime() - new Date(trip.date_start).getTime()) / (1000 * 60 * 60 * 24)) + 1
       : dateGroups.length
@@ -218,52 +216,12 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
               </p>
             </div>
           ) : (
-            <main className="pb-24">
-              {dateGroups.map((group, groupIndex) => {
-                const tag = dayTag(group.positions.map(p => p.phase))
-                return (
-                  <div key={group.date}>
-                    {/* Overlap banner — hairline strip with no gradient */}
-                    {overlap && groupIndex === overlapStartIndex && (
-                      <div
-                        className="px-5 py-3 border-y border-stroke"
-                        style={{ background: 'var(--stroke-soft)' }}
-                      >
-                        <MonoLabel>everyone together</MonoLabel>
-                        <p
-                          style={{
-                            fontFamily: 'var(--font-serif)',
-                            fontSize: '16px',
-                            fontStyle: 'italic',
-                            marginTop: '4px',
-                          }}
-                        >
-                          {formatDateHeader(overlap.start, trip.timezone)} – {formatDateHeader(overlap.end, trip.timezone)}
-                        </p>
-                      </div>
-                    )}
-
-                    <DaySection title={group.label} tag={tag ?? undefined}>
-                      {group.positions.map(pos => {
-                        const family = userFamilyMap.get(pos.event.added_by)
-                        const canDelete =
-                          isOrganizer || (currentUserId !== null && pos.event.added_by === currentUserId)
-                        return (
-                          <TimelineEventCard
-                            key={`${pos.event.id}-${pos.phase}`}
-                            event={pos.event}
-                            phase={pos.phase}
-                            familyName={family?.name ?? null}
-                            familyColor={family?.color ?? null}
-                            canDelete={canDelete}
-                          />
-                        )
-                      })}
-                    </DaySection>
-                  </div>
-                )
-              })}
-            </main>
+            <TimelineFilterableContent
+              dateGroups={dateGroups}
+              families={tripFamilies}
+              overlap={overlap}
+              timezone={trip.timezone}
+            />
           )}
         </PageShell>
       </TimelineRealtimeWrapper>
