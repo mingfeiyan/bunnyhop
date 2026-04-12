@@ -8,61 +8,20 @@ import MonoLabel from '@/components/ui/MonoLabel'
 const API_DOCS_URL = 'https://github.com/mingfeiyan/bunnyhop/blob/main/docs/agent-guide.md'
 
 function buildAgentPrompt(endpoint: string): string {
-  return `When you find confirmed travel bookings for my trip — flights, hotels, Airbnbs, cruises, or activities — POST them as structured JSON to:
-
+  return `POST confirmed bookings (flights, hotels, Airbnbs, cruises, activities) as JSON to:
 ${endpoint}
 
-Schema (each event):
-{
-  "type": "flight" | "hotel" | "airbnb" | "cruise" | "activity",
-  "title": "short label, e.g. 'United UA115 SFO → PPT' or 'Four Seasons Maui'",
-  "start_date": "YYYY-MM-DD",            // flight: depart date | stays: check-in / embark | activity: date
-  "end_date": "YYYY-MM-DD",              // optional. flight: arrival if next day | stays: check-out / debark
-  "start_time": "HH:MM",                 // 24-hour, optional. flight: depart | activity: start
-  "end_time": "HH:MM",                   // 24-hour, optional. flight: arrival | activity: end
-  "origin": "SFO",                       // flights only, IATA code
-  "destination": "PPT",                  // flights only, IATA code
-  "reference": "UA115",                  // flight number or confirmation code
-  "details": {                           // free-form. include the address for any stay (hotel/airbnb/cruise)
-    "name": "...",                       // for stays + activities
-    "address": "...",                    // for stays — used to auto-fill the trip's destination
-    "host": "...",                       // airbnb / vrbo only
-    "platform": "Airbnb",                // airbnb / vrbo only — exact value 'Airbnb' triggers the airbnb type
-    "cruise_line": "Disney Cruise Line", // cruise only
-    "confirmation": "..."
-  }
-}
+Schema: { "type": "flight"|"hotel"|"airbnb"|"cruise"|"activity", "title": "short label", "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD", "start_time": "HH:MM", "end_time": "HH:MM", "origin": "SFO", "destination": "PPT", "reference": "UA115", "details": { "address": "...", "confirmation": "..." } }
 
-You can POST a single object or an array of objects. Batching is faster.
+Key rules:
+- Dates: YYYY-MM-DD. Times: 24-hour HH:MM. Only confirmed bookings.
+- Round-trip flights = TWO entries. Always include details.address on stays.
+- POST single object or array. Invite code in URL = auth, no API key needed.
 
-Type guide:
-- "flight" — any airline ticket. Round-trip flights = TWO entries (one outbound, one return).
-- "hotel" — traditional hotels and resorts.
-- "airbnb" — Airbnb or VRBO vacation rentals. Same shape as hotel; the type controls the timeline label.
-- "cruise" — cruise bookings. start_date = embark, end_date = debark. Use the embark port as details.address so the trip destination auto-fills.
-- "activity" — confirmed activity bookings (tours, dinner reservations, museum tickets) with a specific date.
-
-Rules:
-- Dates MUST be ISO YYYY-MM-DD ("2026-06-27", not "June 27 2026").
-- Times MUST be 24-hour HH:MM ("13:25", not "1:25 PM").
-- Only submit confirmed bookings — skip quotes, holds, waitlists.
-- The invite code in the URL is the auth. No API key needed.
-- Always include details.address on stays — it's how the trip's destination auto-fills.
-
-To READ the trip state (timeline, group consensus, context, families), call:
-
+To READ trip state (timeline, consensus, context, families):
 GET ${endpoint.replace('/timeline-events', '/summary')}
 
-This returns the full trip in one JSON response:
-- trip: title, destination, dates, participants
-- timeline: all confirmed bookings sorted by date
-- context: notes and constraints from the group
-- results: every recommendation card with its consensus (everyone_loves / mixed / hard_pass), score, and vote count
-- families: who's in which family group
-
-Use this to understand the group's preferences, see what's already booked, identify gaps in the itinerary, and plan further.
-
-Full API reference: ${API_DOCS_URL}`
+Full docs: ${API_DOCS_URL}`
 }
 
 type Props = {
