@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import TripContextSection from '@/components/TripContextSection'
 import InviteLink from '@/components/InviteLink'
-import FamilyGroupManager from '@/components/FamilyGroupManager'
+// FamilyGroupManager removed — family management now lives on /admin
+// via the global families system (migration 014).
 import EditTripDetailsButton from '@/components/EditTripDetailsButton'
 import PageShell from '@/components/ui/PageShell'
 import PageHeader from '@/components/ui/PageHeader'
@@ -123,12 +124,7 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
               isOrganizer={isOrganizer}
             />
 
-            {/* Family Groups (collapsible, secondary) */}
-            <FamilyGroupManager
-              tripId={tripId}
-              isOrganizer={isOrganizer}
-              participants={participants ?? []}
-            />
+            {/* Family groups now managed globally on /admin */}
           </div>
         </div>
       </div>
@@ -202,12 +198,7 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
             isOrganizer={isOrganizer}
           />
 
-          {/* Family groups — child renders its own dual-tree */}
-          <FamilyGroupManager
-            tripId={tripId}
-            isOrganizer={isOrganizer}
-            participants={participants ?? []}
-          />
+          {/* Family groups now managed globally on /admin */}
         </PageShell>
       </div>
     </>
