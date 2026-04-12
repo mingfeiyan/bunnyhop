@@ -1,6 +1,6 @@
 # Bunnyhop Timeline API
 
-Structured API for submitting confirmed flight and hotel bookings to a Bunnyhop trip. Designed for AI agents that already have structured booking data (from email, calendar, travel systems, etc.) — skips the free-text parsing layer for speed and accuracy.
+Structured API for submitting confirmed travel bookings to a Bunnyhop trip. Supports flights, hotels, Airbnb / VRBO rentals, cruises, and confirmed activity bookings. Designed for AI agents that already have structured booking data (from email, calendar, travel systems, etc.) — skips the free-text parsing layer for speed and accuracy.
 
 If your agent only has unstructured text, use the free-text endpoint instead (see "Fallback" at the bottom).
 
@@ -32,16 +32,26 @@ Send a **single event object** or an **array of event objects**. Batching multip
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `type` | `"flight"` \| `"hotel"` | yes | The kind of booking. Other types (activities, transfers) are not yet supported. |
-| `title` | string | yes | Short human-readable label displayed on the timeline card. Examples: `"United UA115 SFO → PPT"`, `"Conrad Bora Bora"`. |
-| `start_date` | string | yes | ISO `YYYY-MM-DD`. For flights: departure date. For hotels: check-in date. |
-| `end_date` | string | no | ISO `YYYY-MM-DD`. For flights: arrival date (only if different from `start_date`, e.g. red-eye or international). For hotels: check-out date. |
-| `start_time` | string | no | 24-hour `HH:MM` (e.g. `"13:25"`, not `"1:25 PM"`). For flights: departure time. For hotels: check-in time. |
-| `end_time` | string | no | 24-hour `HH:MM`. For flights: arrival time. For hotels: check-out time. |
+| `type` | `"flight"` \| `"hotel"` \| `"airbnb"` \| `"cruise"` \| `"activity"` | yes | The kind of booking. See type guide below. |
+| `title` | string | yes | Short human-readable label displayed on the timeline card. Examples: `"United UA115 SFO → PPT"`, `"Conrad Bora Bora"`, `"Disney 5-Night Bahamian"`. |
+| `start_date` | string | yes | ISO `YYYY-MM-DD`. Flight: departure date. Hotel/Airbnb/Cruise: check-in / embark. Activity: date. |
+| `end_date` | string | no | ISO `YYYY-MM-DD`. Flight: arrival date (only if different from `start_date`, e.g. red-eye). Hotel/Airbnb/Cruise: check-out / debark. |
+| `start_time` | string | no | 24-hour `HH:MM` (e.g. `"13:25"`, not `"1:25 PM"`). Flight: departure time. Activity: start time. |
+| `end_time` | string | no | 24-hour `HH:MM`. Flight: arrival time. Activity: end time. |
 | `origin` | string | flights only | IATA airport code, e.g. `"SFO"`. |
 | `destination` | string | flights only | IATA airport code, e.g. `"PPT"`. |
 | `reference` | string | no | Flight number, confirmation code, or anything useful to display. |
-| `details` | object | no | Free-form JSON for extra context: confirmation codes, cabin class, seats, fare, passenger names, hotel address, room type, etc. Not indexed or parsed — purely for display. |
+| `details` | object | no | Free-form JSON for extra context. **For all stays (hotel/airbnb/cruise), always include `details.address`** — it's used to auto-fill the trip's destination via the city-extraction heuristic. Other useful fields: `name`, `host`, `platform`, `cruise_line`, `confirmation`, `room_type`, `guests`, etc. |
+
+### Type guide
+
+| Type | Use for | Phase rendering | Notes |
+|---|---|---|---|
+| `flight` | Any airline ticket. | One position at `start_date`. | Round-trip = two separate entries (outbound + return). |
+| `hotel` | Traditional hotels and resorts. | Two positions: check-in at `start_date`, check-out at `end_date`. | Always include `details.address`. |
+| `airbnb` | Airbnb or VRBO vacation rentals. | Same as hotel — check-in / check-out. | Set `details.platform: "Airbnb"` to lock the type. Same shape as hotel; type controls the kicker label. |
+| `cruise` | Cruise bookings. | Two positions: board at `start_date`, debark at `end_date`. | `details.address` should be the embark port (e.g. `"Port Everglades, Fort Lauderdale, FL"`) so the trip destination auto-fills correctly. Optional: `details.cruise_line`, `details.ship_name`. |
+| `activity` | Confirmed activity bookings (tours, dinner reservations, museum tickets) with a specific date. | One position at `start_date`. | Skip vague wishes ("we want to go snorkeling") — only real bookings with a date. |
 
 ### Format rules (strict)
 
@@ -49,7 +59,7 @@ Send a **single event object** or an **array of event objects**. Batching multip
 - **Times must be `HH:MM` 24-hour.** `"13:25"` ✅. `"1:25 PM"` ❌. `"13:25:00"` ❌.
 - **Round-trip flights = two separate entries.** Do not combine outbound and return into one record.
 - **Only confirmed bookings.** Skip quotes, holds, waitlists, or anything tentative. Note these in the user's trip hub instead via the free-text endpoint.
-- **One hotel = one entry.** Use `start_date` for check-in and `end_date` for check-out. The timeline will render two visual cards (check-in and check-out) automatically.
+- **One stay = one entry.** Hotel, Airbnb, and cruise all use a single entry with `start_date` (check-in / embark) and `end_date` (check-out / debark). The timeline renders two visual positions automatically.
 
 ---
 
@@ -135,6 +145,67 @@ When a flight arrives the day after it departs (red-eyes, long-haul with big tim
 }
 ```
 
+### Airbnb / VRBO rental
+
+```json
+{
+  "type": "airbnb",
+  "title": "Scenic Retreat w/ River Views & Private Suite",
+  "start_date": "2026-08-26",
+  "end_date": "2026-08-30",
+  "details": {
+    "name": "Scenic Retreat w/ River Views & Private Suite",
+    "address": "1631 Bellerive Ln, Coeur d'Alene, ID 83814, USA",
+    "platform": "Airbnb",
+    "host": "Joshua",
+    "confirmation": "HMT45H5C3H",
+    "guests": "6 adults, 3 children"
+  }
+}
+```
+
+The `details.address` is what powers the trip's destination auto-fill — the city is extracted via a robust parser that handles country suffixes, merged "City STATE zip" forms, and international addresses.
+
+### Cruise
+
+```json
+{
+  "type": "cruise",
+  "title": "Disney Cruise — 5-Night Very Merrytime Bahamian",
+  "start_date": "2026-11-25",
+  "end_date": "2026-11-30",
+  "details": {
+    "name": "Disney Cruise — 5-Night Very Merrytime Bahamian",
+    "address": "Port Everglades, Fort Lauderdale, FL",
+    "cruise_line": "Disney Cruise Line",
+    "ship_name": "Disney Magic",
+    "embark_port": "Fort Lauderdale (Port Everglades)",
+    "confirmation": "42559440"
+  }
+}
+```
+
+`address` should be the embark port — the city portion is what fills in the trip's destination.
+
+### Activity (a confirmed booking with a date)
+
+```json
+{
+  "type": "activity",
+  "title": "Sunset catamaran cruise — Vaitape Harbor",
+  "start_date": "2026-06-28",
+  "start_time": "17:00",
+  "end_time": "19:30",
+  "reference": "CRUISE-789",
+  "details": {
+    "name": "Sunset Catamaran Cruise",
+    "location": "Vaitape Harbor",
+    "organizer": "Bora Bora Adventures",
+    "guests": 4
+  }
+}
+```
+
 ---
 
 ## Responses
@@ -173,7 +244,7 @@ Common validation errors and how to fix them:
 
 | Error | Fix |
 |---|---|
-| `type must be "flight" or "hotel"` | Use one of the two supported types. Other categories aren't available yet. |
+| `type must be one of: flight, hotel, airbnb, cruise, activity` | Use one of the five supported types. |
 | `title is required` | Include a non-empty `title` field. |
 | `start_date is required in YYYY-MM-DD format` | Use ISO date format. Reject or reformat any other date style before calling. |
 | `end_date must be YYYY-MM-DD format if provided` | Same as above. Omit the field entirely if you don't have an end date. |

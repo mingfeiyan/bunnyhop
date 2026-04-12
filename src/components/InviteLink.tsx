@@ -8,32 +8,46 @@ import MonoLabel from '@/components/ui/MonoLabel'
 const API_DOCS_URL = 'https://github.com/mingfeiyan/bunnyhop/blob/main/docs/timeline-api.md'
 
 function buildAgentPrompt(endpoint: string): string {
-  return `When you find confirmed flight or hotel bookings for my trip, POST them as structured JSON to:
+  return `When you find confirmed travel bookings for my trip — flights, hotels, Airbnbs, cruises, or activities — POST them as structured JSON to:
 
 ${endpoint}
 
 Schema (each event):
 {
-  "type": "flight" | "hotel",
-  "title": "short label, e.g. 'United UA115 SFO → PPT'",
-  "start_date": "YYYY-MM-DD",            // flight: depart date | hotel: check-in
-  "end_date": "YYYY-MM-DD",              // optional. flight: arrival if next day | hotel: check-out
-  "start_time": "HH:MM",                 // 24-hour, optional. flight: depart | hotel: check-in
-  "end_time": "HH:MM",                   // 24-hour, optional. flight: arrival | hotel: check-out
+  "type": "flight" | "hotel" | "airbnb" | "cruise" | "activity",
+  "title": "short label, e.g. 'United UA115 SFO → PPT' or 'Four Seasons Maui'",
+  "start_date": "YYYY-MM-DD",            // flight: depart date | stays: check-in / embark | activity: date
+  "end_date": "YYYY-MM-DD",              // optional. flight: arrival if next day | stays: check-out / debark
+  "start_time": "HH:MM",                 // 24-hour, optional. flight: depart | activity: start
+  "end_time": "HH:MM",                   // 24-hour, optional. flight: arrival | activity: end
   "origin": "SFO",                       // flights only, IATA code
   "destination": "PPT",                  // flights only, IATA code
   "reference": "UA115",                  // flight number or confirmation code
-  "details": { "any extra context": "seats, fare, confirmation, address" }
+  "details": {                           // free-form. include the address for any stay (hotel/airbnb/cruise)
+    "name": "...",                       // for stays + activities
+    "address": "...",                    // for stays — used to auto-fill the trip's destination
+    "host": "...",                       // airbnb / vrbo only
+    "platform": "Airbnb",                // airbnb / vrbo only — exact value 'Airbnb' triggers the airbnb type
+    "cruise_line": "Disney Cruise Line", // cruise only
+    "confirmation": "..."
+  }
 }
 
 You can POST a single object or an array of objects. Batching is faster.
 
+Type guide:
+- "flight" — any airline ticket. Round-trip flights = TWO entries (one outbound, one return).
+- "hotel" — traditional hotels and resorts.
+- "airbnb" — Airbnb or VRBO vacation rentals. Same shape as hotel; the type controls the timeline label.
+- "cruise" — cruise bookings. start_date = embark, end_date = debark. Use the embark port as details.address so the trip destination auto-fills.
+- "activity" — confirmed activity bookings (tours, dinner reservations, museum tickets) with a specific date.
+
 Rules:
 - Dates MUST be ISO YYYY-MM-DD ("2026-06-27", not "June 27 2026").
 - Times MUST be 24-hour HH:MM ("13:25", not "1:25 PM").
-- Round-trip flights = TWO entries (one outbound, one return).
 - Only submit confirmed bookings — skip quotes, holds, waitlists.
 - The invite code in the URL is the auth. No API key needed.
+- Always include details.address on stays — it's how the trip's destination auto-fills.
 
 Full API reference: ${API_DOCS_URL}`
 }
