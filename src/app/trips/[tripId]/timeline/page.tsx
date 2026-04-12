@@ -203,7 +203,11 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
     const headerTitle = trip.destination ?? trip.title ?? 'Trip'
     const metaLeft = dateRange ?? 'add bookings to fill in dates'
     const eventCount = allEvents.length
-    const dayCount = dateGroups.length
+    // Trip duration in days (inclusive). Falls back to the number of unique
+    // event dates if the trip has no date range set yet.
+    const dayCount = hasDates
+      ? Math.round((new Date(trip.date_end).getTime() - new Date(trip.date_start).getTime()) / (1000 * 60 * 60 * 24)) + 1
+      : dateGroups.length
 
     return (
       <TimelineRealtimeWrapper tripId={tripId}>
