@@ -11,7 +11,7 @@ import MetaStrip from '@/components/ui/MetaStrip'
 import OverviewGrid from '@/components/ui/OverviewGrid'
 import DaySection from '@/components/ui/DaySection'
 import MonoLabel from '@/components/ui/MonoLabel'
-import type { TripParticipant, FamilyGroup, TimelineEventRow } from '@/types'
+import type { TripParticipant, TimelineEventRow } from '@/types'
 
 // One-word descriptor for a day, derived from the phases of its events.
 type Phase = 'flight' | 'check_in' | 'check_out' | 'activity'
@@ -66,32 +66,29 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
 
     if (participantsError) throw new Error(`trip_participants query failed: ${participantsError.message}`)
 
-    const { data: familyGroups, error: familyGroupsError } = await supabase
-      .from('family_groups')
-      .select('*')
-      .eq('trip_id', tripId)
-
-    if (familyGroupsError) throw new Error(`family_groups query failed: ${familyGroupsError.message}`)
-
     // Determine if current user is the trip organizer
     const isOrganizer = (participants ?? []).some(
       (p: TripParticipant) => p.user_id === currentUserId && p.role === 'organizer'
     )
 
-    // Build family group lookup by id
-    const groupById = new Map<string, FamilyGroup>()
-    for (const g of (familyGroups ?? []) as FamilyGroup[]) {
-      groupById.set(g.id, g)
-    }
+    // Build a global family lookup: user_id → { familyName, familyColor }.
+    // Uses the global families/family_members tables (migration 014) instead
+    // of the old per-trip family_groups. Every user who's in a family gets
+    // their color automatically on any trip they participate in.
+    const { data: familyMembersData } = await supabase
+      .from('family_members')
+      .select('user_id, families(name, color)')
 
-    // Build a lookup: user_id -> { familyName, familyColor }
     const userFamilyMap = new Map<string, { familyName: string | null; familyColor: string | null }>()
-    for (const p of (participants ?? []) as TripParticipant[]) {
-      const group = p.family_group_id ? groupById.get(p.family_group_id) : null
-      userFamilyMap.set(p.user_id, {
-        familyName: group?.name ?? null,
-        familyColor: group?.color ?? null,
-      })
+    for (const fm of (familyMembersData ?? []) as Array<Record<string, unknown>>) {
+      const uid = fm.user_id as string | null
+      // Supabase returns the joined table as an object (many-to-one) but
+      // TypeScript infers it as array. Handle both shapes defensively.
+      const fam = Array.isArray(fm.families) ? fm.families[0] : fm.families
+      if (uid && fam && typeof fam === 'object') {
+        const { name, color } = fam as { name: string; color: string }
+        userFamilyMap.set(uid, { familyName: name, familyColor: color })
+      }
     }
 
     const allEvents = (events ?? []) as TimelineEventRow[]
