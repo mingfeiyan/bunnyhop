@@ -1,16 +1,6 @@
 @import "tailwindcss";
 
-/* === Default theme === */
-/* These are the original Bunnyhop styles. They apply unless the html element
-   has class="theme-editorial", in which case the overrides below take effect. */
-
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-
-  /* Editorial tokens are always defined (so editorial primitives have
-     something to reference even when not active), but only the body-level
-     styles below are scoped under .theme-editorial. */
   --cream: #F0F0EC;
   --stroke: #333D29;
   --stroke-soft: rgba(51, 61, 41, 0.08);
@@ -30,37 +20,10 @@
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --color-stroke: var(--stroke);
-
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-}
-
-* {
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* === Editorial theme overrides ===
-   Active when <html class="theme-editorial">. Set by the inline init script
-   in layout.tsx (reads localStorage on first paint, no flash) and by the
-   UIThemeToggle client component. */
-
-:root.theme-editorial body {
   background: var(--cream);
   color: var(--stroke);
   font-family: var(--font-serif), Georgia, serif;
@@ -68,26 +31,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* === Dual-tree visibility ===
-   Pages that have been ported to the editorial design render BOTH trees
-   (wrapped in .theme-default-tree and .theme-editorial-tree). CSS shows
-   exactly one based on the html class. Both trees share the same data
-   fetched once per page load. */
-
-.theme-editorial-tree {
-  display: none;
-}
-:root.theme-editorial .theme-default-tree {
-  display: none;
-}
-:root.theme-editorial .theme-editorial-tree {
-  display: block;
+* {
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* === Editorial primitives ===
-   These class definitions are always present so the editorial JSX renders
-   correctly when the toggle flips. The visibility wrappers above ensure
-   they're only painted when active. */
+/* Editorial primitives */
 
 .label-mono {
   font-family: var(--font-mono-editorial), 'SFMono-Regular', monospace;
@@ -143,8 +91,7 @@ body {
 .pill-btn-sm { font-size: 11px; padding: 6px 20px; }
 .pill-btn-md { font-size: 12px; padding: 8px 24px; }
 
-/* Collapsible section — wraps <details>/<summary> to look like DaySection.
-   Used for the "Past" trips bucket so it folds out of sight by default. */
+/* Collapsible section */
 .collapsible-section summary {
   list-style: none;
   cursor: pointer;
@@ -152,35 +99,5 @@ body {
 .collapsible-section summary::-webkit-details-marker {
   display: none;
 }
-/* Show/hide toggle text inside the summary swaps based on open state */
 .collapsible-section[open] .when-closed { display: none; }
 .collapsible-section:not([open]) .when-open { display: none; }
-
-/* The toggle button itself — sits fixed top-right, generic enough to look
-   reasonable in either theme. */
-.ui-theme-toggle {
-  position: fixed;
-  top: 12px;
-  right: 12px;
-  z-index: 200;
-  font-family: var(--font-geist-mono), 'SFMono-Regular', monospace;
-  font-size: 10px;
-  text-transform: lowercase;
-  letter-spacing: 0.05em;
-  padding: 6px 12px;
-  border-radius: 100px;
-  border: 1px solid currentColor;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: #333;
-  cursor: pointer;
-  opacity: 0.6;
-  transition: opacity 0.15s ease;
-}
-.ui-theme-toggle:hover { opacity: 1; }
-:root.theme-editorial .ui-theme-toggle {
-  background: rgba(240, 240, 236, 0.7);
-  color: var(--stroke);
-  font-family: var(--font-mono-editorial), 'SFMono-Regular', monospace;
-}

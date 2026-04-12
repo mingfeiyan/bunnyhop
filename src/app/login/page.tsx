@@ -29,94 +29,55 @@ function LoginForm() {
   )
 
   return (
-    <>
-      {/* === Default tree === */}
-      <div className="theme-default-tree">
-        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm text-center">
-          <h1 className="text-3xl font-bold mb-2">Bunnyhop</h1>
-          <p className="text-gray-500 mb-8">Plan trips together, the fun way</p>
-          <button
-            onClick={signInWithGoogle}
-            className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-700 font-medium hover:bg-gray-50 transition"
-          >
-            {googleSvg}
-            Continue with Google
-          </button>
-        </div>
-      </div>
-
-      {/* === Editorial tree === */}
-      <div className="theme-editorial-tree">
-        <div className="w-full max-w-sm text-center px-6">
-          <MonoLabel className="block mb-2">bunnyhop</MonoLabel>
-          <h1
-            style={{
-              fontFamily: 'var(--font-serif)',
-              fontSize: '36px',
-              fontWeight: 400,
-              margin: 0,
-              letterSpacing: '-0.02em',
-              lineHeight: 1.1,
-            }}
-          >
-            Plan trips together
-          </h1>
-          <p
-            style={{
-              fontFamily: 'var(--font-serif)',
-              fontSize: '16px',
-              fontStyle: 'italic',
-              opacity: 0.75,
-              marginTop: '12px',
-              marginBottom: '32px',
-            }}
-          >
-            the fun way
-          </p>
-          <button
-            onClick={signInWithGoogle}
-            className="pill-btn pill-btn-md inline-flex items-center justify-center"
-            style={{ gap: '12px', padding: '10px 24px' }}
-          >
-            {googleSvg}
-            continue with google
-          </button>
-        </div>
-      </div>
-    </>
+    <div className="w-full max-w-sm text-center px-6">
+      <MonoLabel className="block mb-2">bunnyhop</MonoLabel>
+      <h1
+        style={{
+          fontFamily: 'var(--font-serif)',
+          fontSize: '36px',
+          fontWeight: 400,
+          margin: 0,
+          letterSpacing: '-0.02em',
+          lineHeight: 1.1,
+        }}
+      >
+        Plan trips together
+      </h1>
+      <p
+        style={{
+          fontFamily: 'var(--font-serif)',
+          fontSize: '16px',
+          fontStyle: 'italic',
+          opacity: 0.75,
+          marginTop: '12px',
+          marginBottom: '32px',
+        }}
+      >
+        the fun way
+      </p>
+      <button
+        onClick={signInWithGoogle}
+        className="pill-btn pill-btn-md inline-flex items-center justify-center"
+        style={{ gap: '12px', padding: '10px 24px' }}
+      >
+        {googleSvg}
+        continue with google
+      </button>
+    </div>
   )
 }
 
 export default function LoginPage() {
   return (
-    <>
-      {/* === Default tree === */}
-      <div className="theme-default-tree">
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-          <Suspense fallback={
-            <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm text-center">
-              <h1 className="text-3xl font-bold mb-2">Bunnyhop</h1>
-              <p className="text-gray-500 mb-8">Loading...</p>
-            </div>
-          }>
-            <LoginForm />
-          </Suspense>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--cream)' }}>
+      <Suspense fallback={
+        <div className="w-full max-w-sm text-center px-6">
+          <MonoLabel className="block mb-2">bunnyhop</MonoLabel>
+          <p className="label-mono mt-4">loading…</p>
         </div>
-      </div>
-
-      {/* === Editorial tree === */}
-      <div className="theme-editorial-tree">
-        <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--cream)' }}>
-          <Suspense fallback={
-            <div className="w-full max-w-sm text-center px-6">
-              <MonoLabel className="block mb-2">bunnyhop</MonoLabel>
-              <p className="label-mono mt-4">loading…</p>
-            </div>
-          }>
-            <LoginForm />
-          </Suspense>
-        </div>
-      </div>
-    </>
+      }>
+        <LoginForm />
+      </Suspense>
+    </div>
   )
 }

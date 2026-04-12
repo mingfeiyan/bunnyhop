@@ -175,58 +175,30 @@ export default function TimelineEventCard({ event, phase, familyName, familyColo
 
   return (
     <>
-      {/* === Default tree === */}
-      <div className="theme-default-tree">
-        <div className={`bg-white rounded-xl p-3 shadow-sm ${colors ? `border-l-4 ${colors.border}` : ''}`}>
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-base">{icon}</span>
-                <span className="font-semibold text-sm">{action}</span>
-              </div>
-              <p className="text-sm text-gray-700">{event.title}</p>
-              {legacyDescription && <p className="text-xs text-gray-500 mt-0.5">{legacyDescription}</p>}
-            </div>
-            {canDelete && (
-              <button
-                onClick={handleDelete}
-                className="text-xs text-red-400 hover:text-red-600 shrink-0"
-              >
-                Delete
-              </button>
-            )}
-          </div>
-          {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+      <EventCard
+        time={editorialTime}
+        kicker={kicker}
+        title={event.title}
+        details={editorialDetails}
+        accentColor={editorialAccent}
+        trailing={
+          canDelete ? (
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="label-mono"
+              style={{ color: 'var(--stroke)', opacity: 0.5, background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              del
+            </button>
+          ) : null
+        }
+      />
+      {error && (
+        <div className="px-5 detail-mono" style={{ color: 'var(--consensus-pass)' }}>
+          {error}
         </div>
-      </div>
-
-      {/* === Editorial tree === */}
-      <div className="theme-editorial-tree">
-        <EventCard
-          time={editorialTime}
-          kicker={kicker}
-          title={event.title}
-          details={editorialDetails}
-          accentColor={editorialAccent}
-          trailing={
-            canDelete ? (
-              <button
-                type="button"
-                onClick={handleDelete}
-                className="label-mono"
-                style={{ color: 'var(--stroke)', opacity: 0.5, background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                del
-              </button>
-            ) : null
-          }
-        />
-        {error && (
-          <div className="px-5 detail-mono" style={{ color: 'var(--consensus-pass)' }}>
-            {error}
-          </div>
-        )}
-      </div>
+      )}
     </>
   )
 }

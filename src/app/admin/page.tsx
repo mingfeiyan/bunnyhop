@@ -22,49 +22,33 @@ export default async function AdminPage() {
 
   if (!adminCheck) {
     return (
-      <div className="theme-editorial-tree">
-        <PageShell back={{ href: '/trips', label: 'back to trips' }}>
-          <PageHeader title="Not authorized" />
-          <p className="px-5 detail-mono" style={{ opacity: 0.7 }}>
-            This page is only accessible to site admins.
-          </p>
-        </PageShell>
-      </div>
+      <PageShell back={{ href: '/trips', label: 'back to trips' }}>
+        <PageHeader title="Not authorized" />
+        <p className="px-5 detail-mono" style={{ opacity: 0.7 }}>
+          This page is only accessible to site admins.
+        </p>
+      </PageShell>
     )
   }
 
   return (
-    <>
-      <div className="theme-default-tree">
-        <div className="min-h-screen bg-gray-50 p-4">
-          <div className="max-w-md mx-auto">
-            <h1 className="text-2xl font-bold mb-2">Admin</h1>
-            <p className="text-gray-500 mb-6 text-sm">Manage who can create trips.</p>
-            <AdminCreatorList />
-          </div>
-        </div>
-      </div>
+    <PageShell back={{ href: '/trips', label: 'back to trips' }}>
+      <PageHeader kicker="admin" title="Site settings" />
+      <section className="px-5 py-4 border-b border-stroke">
+        <MonoLabel className="block mb-3">trip creation whitelist</MonoLabel>
+        <p className="detail-mono mb-4" style={{ opacity: 0.7 }}>
+          Only users on this list can create new trips. Everyone else can still view and participate in trips they&apos;re invited to.
+        </p>
+        <AdminCreatorList />
+      </section>
 
-      <div className="theme-editorial-tree">
-        <PageShell back={{ href: '/trips', label: 'back to trips' }}>
-          <PageHeader kicker="admin" title="Site settings" />
-          <section className="px-5 py-4 border-b border-stroke">
-            <MonoLabel className="block mb-3">trip creation whitelist</MonoLabel>
-            <p className="detail-mono mb-4" style={{ opacity: 0.7 }}>
-              Only users on this list can create new trips. Everyone else can still view and participate in trips they&apos;re invited to.
-            </p>
-            <AdminCreatorList />
-          </section>
-
-          <section className="px-5 py-4">
-            <MonoLabel className="block mb-3">families</MonoLabel>
-            <p className="detail-mono mb-4" style={{ opacity: 0.7 }}>
-              Global family groups. Members automatically get their family&apos;s color accent on any trip timeline they appear in. No per-trip setup needed.
-            </p>
-            <AdminFamilyList />
-          </section>
-        </PageShell>
-      </div>
-    </>
+      <section className="px-5 py-4">
+        <MonoLabel className="block mb-3">families</MonoLabel>
+        <p className="detail-mono mb-4" style={{ opacity: 0.7 }}>
+          Global family groups. Members automatically get their family&apos;s color accent on any trip timeline they appear in. No per-trip setup needed.
+        </p>
+        <AdminFamilyList />
+      </section>
+    </PageShell>
   )
 }

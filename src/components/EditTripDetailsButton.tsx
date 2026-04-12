@@ -22,21 +22,7 @@ export default function EditTripDetailsButton({ trip, isOrganizer }: Props) {
 
   return (
     <>
-      {/* === Default tree === */}
-      <div className="theme-default-tree">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="text-xs text-blue-600 hover:underline mt-2"
-        >
-          Edit trip details
-        </button>
-      </div>
-
-      {/* === Editorial tree === */}
-      <div className="theme-editorial-tree">
-        <PillButton onClick={() => setOpen(true)}>edit details</PillButton>
-      </div>
+      <PillButton onClick={() => setOpen(true)}>edit details</PillButton>
 
       {open && (
         <EditTripDetailsModal

@@ -91,167 +91,113 @@ export default function SwipeDeck({ cards, destination, onSwipe }: Props) {
   const dragTransition = isDragging ? 'none' : 'transform 0.3s ease'
 
   return (
-    <>
-      {/* === Default tree === */}
-      <div className="theme-default-tree">
-        <div className="relative w-full max-w-sm mx-auto">
-          <div className="relative aspect-[3/4]">
-            {cards.length > 1 && (
-              <div className="absolute inset-0 scale-95 opacity-50">
-                <FlipCard card={cards[1]} destination={destination} />
-              </div>
-            )}
+    <div className="relative w-full max-w-sm mx-auto">
+      <div className="relative" style={{ aspectRatio: '3 / 4' }}>
+        {cards.length > 1 && (
+          <div className="absolute inset-0" style={{ transform: 'scale(0.95)', opacity: 0.5 }}>
+            <FlipCard card={cards[1]} destination={destination} />
+          </div>
+        )}
 
-            <div
-              className="absolute inset-0 touch-none"
-              style={{ transform: dragTransform, transition: dragTransition }}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-            >
-              <div
-                className="absolute inset-0 rounded-2xl z-10 pointer-events-none flex items-center justify-center"
-                style={{ backgroundColor: getOverlayColorDefault() }}
+        <div
+          className="absolute inset-0 touch-none"
+          style={{ transform: dragTransform, transition: dragTransition }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+        >
+          <div
+            className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center"
+            style={{ backgroundColor: getOverlayColorEditorial() }}
+          >
+            {getSwipeLabel() && (
+              <span
+                style={{
+                  fontFamily: 'var(--font-serif)',
+                  fontSize: '48px',
+                  fontStyle: 'italic',
+                  color: 'var(--cream)',
+                  textShadow: '0 1px 2px rgba(51,61,41,0.5)',
+                  letterSpacing: '0.04em',
+                }}
               >
-                {getSwipeLabel() && (
-                  <span className="text-4xl font-black text-white drop-shadow-lg">
-                    {getSwipeLabel()}
-                  </span>
-                )}
-              </div>
-
-              <FlipCard card={currentCard} destination={destination} />
-            </div>
+                {getSwipeLabel()?.toLowerCase()}
+              </span>
+            )}
           </div>
 
-          <div className="flex justify-center gap-6 mt-6">
-            <button onClick={() => swipe('pass')}
-              className="w-14 h-14 rounded-full bg-red-100 text-red-500 flex items-center justify-center text-2xl hover:bg-red-200 transition">
-              ✕
-            </button>
-            <button onClick={() => swipe('indifferent')}
-              className="w-14 h-14 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center text-xl hover:bg-blue-200 transition">
-              —
-            </button>
-            <button onClick={() => swipe('want')}
-              className="w-14 h-14 rounded-full bg-green-100 text-green-500 flex items-center justify-center text-2xl hover:bg-green-200 transition">
-              ♥
-            </button>
-          </div>
+          <FlipCard card={currentCard} destination={destination} />
         </div>
       </div>
 
-      {/* === Editorial tree === */}
-      <div className="theme-editorial-tree">
-        <div className="relative w-full max-w-sm mx-auto">
-          <div className="relative" style={{ aspectRatio: '3 / 4' }}>
-            {cards.length > 1 && (
-              <div className="absolute inset-0" style={{ transform: 'scale(0.95)', opacity: 0.5 }}>
-                <FlipCard card={cards[1]} destination={destination} />
-              </div>
-            )}
-
-            <div
-              className="absolute inset-0 touch-none"
-              style={{ transform: dragTransform, transition: dragTransition }}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-            >
-              <div
-                className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center"
-                style={{ backgroundColor: getOverlayColorEditorial() }}
-              >
-                {getSwipeLabel() && (
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-serif)',
-                      fontSize: '48px',
-                      fontStyle: 'italic',
-                      color: 'var(--cream)',
-                      textShadow: '0 1px 2px rgba(51,61,41,0.5)',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    {getSwipeLabel()?.toLowerCase()}
-                  </span>
-                )}
-              </div>
-
-              <FlipCard card={currentCard} destination={destination} />
-            </div>
-          </div>
-
-          <div className="flex justify-center gap-8 mt-8">
-            <button
-              onClick={() => swipe('pass')}
-              className="flex flex-col items-center gap-2"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--stroke)' }}
-            >
-              <span
-                style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '50%',
-                  border: '1px solid var(--stroke)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '22px',
-                }}
-              >
-                ✕
-              </span>
-              <span className="label-mono">pass</span>
-            </button>
-            <button
-              onClick={() => swipe('indifferent')}
-              className="flex flex-col items-center gap-2"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--stroke)' }}
-            >
-              <span
-                style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '50%',
-                  border: '1px solid var(--stroke)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '22px',
-                }}
-              >
-                —
-              </span>
-              <span className="label-mono">meh</span>
-            </button>
-            <button
-              onClick={() => swipe('want')}
-              className="flex flex-col items-center gap-2"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--stroke)' }}
-            >
-              <span
-                style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '50%',
-                  border: '1px solid var(--stroke)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '22px',
-                }}
-              >
-                ♥
-              </span>
-              <span className="label-mono">want</span>
-            </button>
-          </div>
-        </div>
+      <div className="flex justify-center gap-8 mt-8">
+        <button
+          onClick={() => swipe('pass')}
+          className="flex flex-col items-center gap-2"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--stroke)' }}
+        >
+          <span
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              border: '1px solid var(--stroke)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: 'var(--font-serif)',
+              fontSize: '22px',
+            }}
+          >
+            ✕
+          </span>
+          <span className="label-mono">pass</span>
+        </button>
+        <button
+          onClick={() => swipe('indifferent')}
+          className="flex flex-col items-center gap-2"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--stroke)' }}
+        >
+          <span
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              border: '1px solid var(--stroke)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: 'var(--font-serif)',
+              fontSize: '22px',
+            }}
+          >
+            —
+          </span>
+          <span className="label-mono">meh</span>
+        </button>
+        <button
+          onClick={() => swipe('want')}
+          className="flex flex-col items-center gap-2"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--stroke)' }}
+        >
+          <span
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              border: '1px solid var(--stroke)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: 'var(--font-serif)',
+              fontSize: '22px',
+            }}
+          >
+            ♥
+          </span>
+          <span className="label-mono">want</span>
+        </button>
       </div>
-    </>
+    </div>
   )
 }

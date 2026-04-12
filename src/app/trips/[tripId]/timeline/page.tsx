@@ -207,143 +207,76 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
 
     return (
       <TimelineRealtimeWrapper tripId={tripId}>
-        {/* === Default tree === */}
-        <div className="theme-default-tree">
-          <div className="min-h-screen bg-gray-50 p-4">
-            <div className="max-w-md mx-auto space-y-6">
-              <div className="bg-white rounded-2xl shadow-sm p-6">
-                <Link href={`/trips/${tripId}`} className="text-sm text-blue-600 mb-2 block">&larr; Back to trip</Link>
-                <h1 className="text-2xl font-bold">Timeline</h1>
-                <p className="text-gray-500">{trip.destination ?? 'No destination set'}</p>
-              </div>
+        <PageShell back={{ href: `/trips/${tripId}`, label: 'back to trip' }}>
+          <PageHeader kicker="trip timeline" title={headerTitle} />
+          <MetaStrip left={metaLeft} right={countdown ?? undefined} />
+          {hasEvents && (
+            <OverviewGrid
+              stats={[
+                { label: 'events', value: String(eventCount).padStart(2, '0') },
+                { label: 'days', value: String(dayCount).padStart(2, '0') },
+              ]}
+            />
+          )}
 
-              {!hasEvents ? (
-                <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
-                  <p className="text-gray-400">No bookings yet. Submit booking details via your agent or the form on the trip page.</p>
-                  <Link href={`/trips/${tripId}`} className="text-blue-600 hover:underline text-sm mt-2 block">
-                    Back to trip
-                  </Link>
-                </div>
-              ) : (
-                <div className="relative pl-8 ml-3">
-                  {/* Timeline line */}
-                  <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-gray-200" />
-
-                  {dateGroups.map((group, groupIndex) => (
-                    <div key={group.date}>
-                      {/* Overlap banner — insert before the overlap start date */}
-                      {overlap && groupIndex === overlapStartIndex && (
-                        <div className="mb-6 -ml-8 bg-gradient-to-r from-emerald-50 to-blue-50 rounded-xl p-3 border border-dashed border-emerald-300">
-                          <p className="text-sm font-semibold text-emerald-800">
-                            🎉 Everyone&apos;s together! {formatDateHeader(overlap.start, trip.timezone)} – {formatDateHeader(overlap.end, trip.timezone)}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Date header */}
-                      <div className="relative mb-4">
-                        <div className="absolute -left-10 top-1 w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow" />
-                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{group.label}</p>
-
-                        {/* Events for this date */}
-                        <div className="mt-2 space-y-2">
-                          {group.positions.map(pos => {
-                            const family = userFamilyMap.get(pos.event.added_by)
-                            const canDelete = isOrganizer || (currentUserId !== null && pos.event.added_by === currentUserId)
-                            return (
-                              <TimelineEventCard
-                                key={`${pos.event.id}-${pos.phase}`}
-                                event={pos.event}
-                                phase={pos.phase}
-                                familyName={family?.familyName ?? null}
-                                familyColor={family?.familyColor ?? null}
-                                canDelete={canDelete}
-                              />
-                            )
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+          {!hasEvents ? (
+            <div className="px-5 py-10 text-center">
+              <p style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', fontStyle: 'italic' }}>
+                No bookings yet.
+              </p>
+              <p className="detail-mono mt-2">
+                Submit booking details via your agent or the form on the trip page.
+              </p>
             </div>
-          </div>
-        </div>
-
-        {/* === Editorial tree === */}
-        <div className="theme-editorial-tree">
-          <PageShell back={{ href: `/trips/${tripId}`, label: 'back to trip' }}>
-            <PageHeader kicker="trip timeline" title={headerTitle} />
-            <MetaStrip left={metaLeft} right={countdown ?? undefined} />
-            {hasEvents && (
-              <OverviewGrid
-                stats={[
-                  { label: 'events', value: String(eventCount).padStart(2, '0') },
-                  { label: 'days', value: String(dayCount).padStart(2, '0') },
-                ]}
-              />
-            )}
-
-            {!hasEvents ? (
-              <div className="px-5 py-10 text-center">
-                <p style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', fontStyle: 'italic' }}>
-                  No bookings yet.
-                </p>
-                <p className="detail-mono mt-2">
-                  Submit booking details via your agent or the form on the trip page.
-                </p>
-              </div>
-            ) : (
-              <main className="pb-24">
-                {dateGroups.map((group, groupIndex) => {
-                  const tag = dayTag(group.positions.map(p => p.phase))
-                  return (
-                    <div key={group.date}>
-                      {/* Overlap banner — hairline strip with no gradient */}
-                      {overlap && groupIndex === overlapStartIndex && (
-                        <div
-                          className="px-5 py-3 border-y border-stroke"
-                          style={{ background: 'var(--stroke-soft)' }}
+          ) : (
+            <main className="pb-24">
+              {dateGroups.map((group, groupIndex) => {
+                const tag = dayTag(group.positions.map(p => p.phase))
+                return (
+                  <div key={group.date}>
+                    {/* Overlap banner — hairline strip with no gradient */}
+                    {overlap && groupIndex === overlapStartIndex && (
+                      <div
+                        className="px-5 py-3 border-y border-stroke"
+                        style={{ background: 'var(--stroke-soft)' }}
+                      >
+                        <MonoLabel>everyone together</MonoLabel>
+                        <p
+                          style={{
+                            fontFamily: 'var(--font-serif)',
+                            fontSize: '16px',
+                            fontStyle: 'italic',
+                            marginTop: '4px',
+                          }}
                         >
-                          <MonoLabel>everyone together</MonoLabel>
-                          <p
-                            style={{
-                              fontFamily: 'var(--font-serif)',
-                              fontSize: '16px',
-                              fontStyle: 'italic',
-                              marginTop: '4px',
-                            }}
-                          >
-                            {formatDateHeader(overlap.start, trip.timezone)} – {formatDateHeader(overlap.end, trip.timezone)}
-                          </p>
-                        </div>
-                      )}
+                          {formatDateHeader(overlap.start, trip.timezone)} – {formatDateHeader(overlap.end, trip.timezone)}
+                        </p>
+                      </div>
+                    )}
 
-                      <DaySection title={group.label} tag={tag ?? undefined}>
-                        {group.positions.map(pos => {
-                          const family = userFamilyMap.get(pos.event.added_by)
-                          const canDelete =
-                            isOrganizer || (currentUserId !== null && pos.event.added_by === currentUserId)
-                          return (
-                            <TimelineEventCard
-                              key={`${pos.event.id}-${pos.phase}`}
-                              event={pos.event}
-                              phase={pos.phase}
-                              familyName={family?.familyName ?? null}
-                              familyColor={family?.familyColor ?? null}
-                              canDelete={canDelete}
-                            />
-                          )
-                        })}
-                      </DaySection>
-                    </div>
-                  )
-                })}
-              </main>
-            )}
-          </PageShell>
-        </div>
+                    <DaySection title={group.label} tag={tag ?? undefined}>
+                      {group.positions.map(pos => {
+                        const family = userFamilyMap.get(pos.event.added_by)
+                        const canDelete =
+                          isOrganizer || (currentUserId !== null && pos.event.added_by === currentUserId)
+                        return (
+                          <TimelineEventCard
+                            key={`${pos.event.id}-${pos.phase}`}
+                            event={pos.event}
+                            phase={pos.phase}
+                            familyName={family?.familyName ?? null}
+                            familyColor={family?.familyColor ?? null}
+                            canDelete={canDelete}
+                          />
+                        )
+                      })}
+                    </DaySection>
+                  </div>
+                )
+              })}
+            </main>
+          )}
+        </PageShell>
       </TimelineRealtimeWrapper>
     )
   } catch (err) {

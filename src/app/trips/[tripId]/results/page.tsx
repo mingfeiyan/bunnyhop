@@ -137,135 +137,77 @@ export default function ResultsPage() {
       : 0
 
   return (
-    <>
-      {/* === Default tree === */}
-      <div className="theme-default-tree">
-        <div className="min-h-screen bg-gray-50 p-4">
-          <div className="max-w-md mx-auto space-y-6">
-            <Link href={`/trips/${tripId}`} className="text-sm text-blue-600">&larr; Back to trip</Link>
+    <PageShell back={{ href: `/trips/${tripId}`, label: 'back to trip' }}>
+      <PageHeader kicker="group results" title={destination || 'Results'} />
+      {totalCards > 0 && (
+        <OverviewGrid
+          stats={[
+            { label: 'total cards', value: String(totalCards).padStart(2, '0') },
+            { label: 'consensus', value: `${consensusRate}%` },
+          ]}
+        />
+      )}
 
-            <h1 className="text-2xl font-bold">Group Results</h1>
+      {/* Filter row */}
+      <div className="flex gap-2 px-5 py-4 flex-wrap">
+        {(['all', 'restaurant', 'activity', 'sightseeing'] as FilterCategory[]).map(cat => (
+          <PillButton
+            key={cat}
+            variant={filter === cat ? 'active' : 'default'}
+            onClick={() => setFilter(cat)}
+          >
+            {cat}
+          </PillButton>
+        ))}
+      </div>
 
-            <div className="flex gap-2">
-              {(['all', 'restaurant', 'activity', 'sightseeing'] as FilterCategory[]).map(cat => (
-                <button key={cat} onClick={() => setFilter(cat)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium capitalize transition ${
-                    filter === cat ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border'
-                  }`}>
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            {everyoneLoves.length > 0 && (
-              <section>
-                <h2 className="font-semibold text-green-700 mb-2">Everyone Loves ({everyoneLoves.length})</h2>
-                <div className="space-y-2">
-                  {everyoneLoves.map(r => <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />)}
-                </div>
-              </section>
-            )}
-
-            {mixed.length > 0 && (
-              <section>
-                <h2 className="font-semibold text-yellow-700 mb-2">Mixed Feelings ({mixed.length})</h2>
-                <div className="space-y-2">
-                  {mixed.map(r => <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />)}
-                </div>
-              </section>
-            )}
-
-            {hardPass.length > 0 && (
-              <section>
-                <h2 className="font-semibold text-red-700 mb-2">Hard Pass ({hardPass.length})</h2>
-                <div className="space-y-2">
-                  {hardPass.map(r => <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />)}
-                </div>
-              </section>
-            )}
-
-            {filtered.length === 0 && (
-              <p className="text-gray-400 text-center py-8">No results yet. Start swiping!</p>
-            )}
-          </div>
+      {filtered.length === 0 ? (
+        <div className="px-5 py-10 text-center">
+          <p
+            style={{
+              fontFamily: 'var(--font-serif)',
+              fontSize: '18px',
+              fontStyle: 'italic',
+              opacity: 0.7,
+            }}
+          >
+            No results yet.
+          </p>
+          <p className="detail-mono mt-2">Start swiping to see what the group thinks.</p>
         </div>
-      </div>
-
-      {/* === Editorial tree === */}
-      <div className="theme-editorial-tree">
-        <PageShell back={{ href: `/trips/${tripId}`, label: 'back to trip' }}>
-          <PageHeader kicker="group results" title={destination || 'Results'} />
-          {totalCards > 0 && (
-            <OverviewGrid
-              stats={[
-                { label: 'total cards', value: String(totalCards).padStart(2, '0') },
-                { label: 'consensus', value: `${consensusRate}%` },
-              ]}
-            />
+      ) : (
+        <main className="pb-12">
+          {everyoneLoves.length > 0 && (
+            <DaySection title="Everyone loves" tag={`${everyoneLoves.length} cards`}>
+              <div className="px-5 py-4">
+                {everyoneLoves.map(r => (
+                  <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />
+                ))}
+              </div>
+            </DaySection>
           )}
 
-          {/* Filter row */}
-          <div className="flex gap-2 px-5 py-4 flex-wrap">
-            {(['all', 'restaurant', 'activity', 'sightseeing'] as FilterCategory[]).map(cat => (
-              <PillButton
-                key={cat}
-                variant={filter === cat ? 'active' : 'default'}
-                onClick={() => setFilter(cat)}
-              >
-                {cat}
-              </PillButton>
-            ))}
-          </div>
-
-          {filtered.length === 0 ? (
-            <div className="px-5 py-10 text-center">
-              <p
-                style={{
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '18px',
-                  fontStyle: 'italic',
-                  opacity: 0.7,
-                }}
-              >
-                No results yet.
-              </p>
-              <p className="detail-mono mt-2">Start swiping to see what the group thinks.</p>
-            </div>
-          ) : (
-            <main className="pb-12">
-              {everyoneLoves.length > 0 && (
-                <DaySection title="Everyone loves" tag={`${everyoneLoves.length} cards`}>
-                  <div className="px-5 py-4">
-                    {everyoneLoves.map(r => (
-                      <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />
-                    ))}
-                  </div>
-                </DaySection>
-              )}
-
-              {mixed.length > 0 && (
-                <DaySection title="Mixed feelings" tag={`${mixed.length} cards`}>
-                  <div className="px-5 py-4">
-                    {mixed.map(r => (
-                      <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />
-                    ))}
-                  </div>
-                </DaySection>
-              )}
-
-              {hardPass.length > 0 && (
-                <DaySection title="Hard pass" tag={`${hardPass.length} cards`}>
-                  <div className="px-5 py-4">
-                    {hardPass.map(r => (
-                      <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />
-                    ))}
-                  </div>
-                </DaySection>
-              )}
-            </main>
+          {mixed.length > 0 && (
+            <DaySection title="Mixed feelings" tag={`${mixed.length} cards`}>
+              <div className="px-5 py-4">
+                {mixed.map(r => (
+                  <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />
+                ))}
+              </div>
+            </DaySection>
           )}
-        </PageShell>
-      </div>
-    </>
+
+          {hardPass.length > 0 && (
+            <DaySection title="Hard pass" tag={`${hardPass.length} cards`}>
+              <div className="px-5 py-4">
+                {hardPass.map(r => (
+                  <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />
+                ))}
+              </div>
+            </DaySection>
+          )}
+        </main>
+      )}
+    </PageShell>
   )
 }
