@@ -1,8 +1,17 @@
 # Bunnyhop
 
-Decide on trips together. AI suggests, your group swipes, and a timeline assembles itself from your booking emails.
+**The fun, AI-native way to coordinate group travel.** Your AI does the busywork, your group just decides.
 
-Bunnyhop is a collaborative trip-planning app for families and small groups. You start with a destination and a date range (or just a name — the rest fills in automatically as you add bookings). Claude generates a deck of restaurants, activities, and sightseeing recommendations. Everyone in the trip swipes through the deck on their phone, and a results view shows what the group agrees on, what's mixed, and what's a hard pass. Meanwhile, any flights, hotels, Airbnbs, or cruises you forward to the trip get parsed into structured events and rendered on a single editorial-style timeline.
+Bunnyhop is built for families and friends planning trips together. Forget the spreadsheets, the group chat that nobody reads, and the airline emails buried in your inbox. Type a trip name and the rest fills itself in. Forward a hotel confirmation and it lands on the timeline. Tell Claude what kind of trip you want and it generates a deck of restaurants, activities, and sightseeing picks — your group swipes through them on their phones and a results view shows what everyone agrees on, what's mixed, and what's a hard pass. Every booking — flights, hotels, Airbnbs, cruises, activities — gets parsed into typed events and rendered on a single editorial-style timeline so you can see the whole trip at a glance.
+
+AI-native means AI is at the core of every loop, not bolted on:
+
+- **Claude Sonnet 4.6** parses booking emails into structured events, generates 20–25 personalized recommendations per trip, and routes free-text trip context (vague wishes vs. confirmed bookings) into the right table.
+- **Gemini 2.5 Flash Image** ("Nano Banana") draws an editorial cover photo for each new trip from just the destination name.
+- **Google Places** fills in photos and ratings for every recommendation card.
+- **An invite-code-based agent API** lets any AI agent (or curl) post bookings directly into a trip with no auth setup — useful for hooking up an inbox watcher that finds confirmations and forwards them automatically.
+
+The result is a trip planner where the boring parts (data entry, scheduling, finding the address, looking up the photo, mapping the dates) all happen behind the scenes, and the fun parts (deciding where to eat, where to go, what to do as a group) are the only thing your friends and family ever touch.
 
 ## What it does
 
