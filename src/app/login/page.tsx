@@ -69,7 +69,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--cream)' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center" style={{ background: 'var(--cream)' }}>
       <Suspense fallback={
         <div className="w-full max-w-sm text-center px-6">
           <MonoLabel className="block mb-2">bunnyhop</MonoLabel>
@@ -78,6 +78,15 @@ export default function LoginPage() {
       }>
         <LoginForm />
       </Suspense>
+      <div className="mt-8 flex gap-4">
+        <a href="/privacy" className="label-mono" style={{ color: 'var(--stroke)', opacity: 0.5, textDecoration: 'none' }}>
+          privacy
+        </a>
+        <span className="label-mono" style={{ opacity: 0.3 }}>·</span>
+        <a href="/terms" className="label-mono" style={{ color: 'var(--stroke)', opacity: 0.5, textDecoration: 'none' }}>
+          terms
+        </a>
+      </div>
     </div>
   )
 }
