@@ -115,6 +115,12 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
           positions.push({ event: ev, date: ev.start_date, phase: 'activity' })
           break
         case 'hotel':
+        case 'airbnb':
+        case 'cruise':
+          // All multi-night stays expand the same way: a check_in position at
+          // start_date and (if end_date is set) a check_out position at end_date.
+          // The TimelineEventCard renderer picks the kicker text based on
+          // event.type (e.g. "airbnb · check-in" vs "cruise · board").
           positions.push({ event: ev, date: ev.start_date, phase: 'check_in' })
           if (ev.end_date) {
             positions.push({ event: ev, date: ev.end_date, phase: 'check_out' })

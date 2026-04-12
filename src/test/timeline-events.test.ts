@@ -121,6 +121,55 @@ describe('parsedEntryToTimelineEvent', () => {
     expect(result).not.toBeNull()
     expect(result?.start_time).toBeNull()
   })
+
+  it('converts a parsed airbnb entry preserving the airbnb type', () => {
+    const entry: ParsedEntry = {
+      type: 'airbnb',
+      raw_text: 'Scenic Retreat Aug 26-30',
+      details: {
+        name: 'Scenic Retreat w/ River Views & Private Suite',
+        address: '1631 Bellerive Ln, Coeur d\'Alene, ID 83814, USA',
+        check_in: '2026-08-26',
+        check_out: '2026-08-30',
+      },
+    }
+    const result = parsedEntryToTimelineEvent(entry)
+    expect(result).not.toBeNull()
+    expect(result?.type).toBe('airbnb')
+    expect(result?.start_date).toBe('2026-08-26')
+    expect(result?.end_date).toBe('2026-08-30')
+    expect(result?.title).toBe('Scenic Retreat w/ River Views & Private Suite')
+    expect(result?.details.address).toBe('1631 Bellerive Ln, Coeur d\'Alene, ID 83814, USA')
+  })
+
+  it('converts a parsed cruise entry preserving the cruise type', () => {
+    const entry: ParsedEntry = {
+      type: 'cruise',
+      raw_text: 'Disney 5-night Bahamian Nov 25-30',
+      details: {
+        name: 'Disney Cruise — 5-Night Very Merrytime Bahamian',
+        address: 'Port Everglades, Fort Lauderdale, FL',
+        check_in: '2026-11-25',
+        check_out: '2026-11-30',
+        cruise_line: 'Disney Cruise Line',
+      },
+    }
+    const result = parsedEntryToTimelineEvent(entry)
+    expect(result).not.toBeNull()
+    expect(result?.type).toBe('cruise')
+    expect(result?.start_date).toBe('2026-11-25')
+    expect(result?.end_date).toBe('2026-11-30')
+    expect(result?.title).toBe('Disney Cruise — 5-Night Very Merrytime Bahamian')
+  })
+
+  it('returns null for airbnb without check_in', () => {
+    const entry: ParsedEntry = {
+      type: 'airbnb',
+      raw_text: 'A rental',
+      details: { name: 'A rental' },
+    }
+    expect(parsedEntryToTimelineEvent(entry)).toBeNull()
+  })
 })
 
 describe('formatTimelineEventDescription', () => {
@@ -166,6 +215,63 @@ describe('formatTimelineEventDescription', () => {
     const result = formatTimelineEventDescription(hotel)
     expect(result).toContain('6 nights')
     expect(result).toContain('check-out 2026-07-04')
+  })
+
+  it('appends the address to a hotel description when present', () => {
+    const hotel: TimelineEventRow = {
+      ...baseEvent,
+      type: 'hotel',
+      title: 'Four Seasons Maui',
+      start_date: '2026-05-01',
+      end_date: '2026-05-05',
+      start_time: null,
+      end_time: null,
+      origin: null,
+      destination: null,
+      reference: null,
+      details: { address: '3900 Wailea Alanui Drive, Kihei HI 96753' },
+    }
+    const result = formatTimelineEventDescription(hotel)
+    expect(result).toContain('4 nights')
+    expect(result).toContain('3900 Wailea Alanui Drive, Kihei HI 96753')
+  })
+
+  it('formats an airbnb description like a hotel', () => {
+    const airbnb: TimelineEventRow = {
+      ...baseEvent,
+      type: 'airbnb',
+      title: 'Scenic Retreat',
+      start_date: '2026-08-26',
+      end_date: '2026-08-30',
+      start_time: null,
+      end_time: null,
+      origin: null,
+      destination: null,
+      reference: null,
+      details: { address: '1631 Bellerive Ln, Coeur d\'Alene, ID 83814, USA' },
+    }
+    const result = formatTimelineEventDescription(airbnb)
+    expect(result).toContain('4 nights')
+    expect(result).toContain('1631 Bellerive Ln')
+  })
+
+  it('formats a cruise description like a hotel', () => {
+    const cruise: TimelineEventRow = {
+      ...baseEvent,
+      type: 'cruise',
+      title: 'Disney 5-Night Bahamian',
+      start_date: '2026-11-25',
+      end_date: '2026-11-30',
+      start_time: null,
+      end_time: null,
+      origin: null,
+      destination: null,
+      reference: null,
+      details: { address: 'Port Everglades, Fort Lauderdale, FL' },
+    }
+    const result = formatTimelineEventDescription(cruise)
+    expect(result).toContain('5 nights')
+    expect(result).toContain('Port Everglades')
   })
 
   it('handles flight with no times', () => {

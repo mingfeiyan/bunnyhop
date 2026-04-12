@@ -26,7 +26,13 @@ export type TimelineEventInsert = Omit<TimelineEventRow, 'id' | 'created_at' | '
 export function parsedEntryToTimelineEvent(entry: ParsedEntry): TimelineEventInsert | null {
   // Filter out non-timeline types up front so the switch below can be exhaustive
   // over the timeline-eligible subset.
-  if (entry.type !== 'flight' && entry.type !== 'hotel' && entry.type !== 'activity') {
+  if (
+    entry.type !== 'flight' &&
+    entry.type !== 'hotel' &&
+    entry.type !== 'activity' &&
+    entry.type !== 'airbnb' &&
+    entry.type !== 'cruise'
+  ) {
     return null
   }
 
@@ -66,17 +72,22 @@ export function parsedEntryToTimelineEvent(entry: ParsedEntry): TimelineEventIns
       }
     }
 
-    case 'hotel': {
+    case 'hotel':
+    case 'airbnb':
+    case 'cruise': {
+      // Hotels, Airbnbs, and cruises share the same shape: a multi-night stay
+      // with check_in and (optional) check_out dates. The only differences are
+      // the kicker label and icon, which the renderer picks based on type.
       const checkIn = details.check_in
       if (!isIsoDate(checkIn)) return null
 
       const checkOut = isIsoDate(details.check_out) ? (details.check_out as string) : null
-      const hotelName = (details.name as string) || ''
-      const title = hotelName || entry.raw_text
+      const stayName = (details.name as string) || ''
+      const title = stayName || entry.raw_text
 
       return {
         trip_id: '',
-        type: 'hotel',
+        type: entry.type,
         title,
         start_date: checkIn,
         end_date: checkOut,
@@ -136,7 +147,11 @@ export function formatTime12h(value: string | null): string {
   return `${hour12}:${match[2]} ${period}`
 }
 
-// Build a human-friendly description string for a timeline event
+// Build a human-friendly description string for a timeline event.
+// For multi-night stays (hotel/airbnb/cruise), the address (when present in
+// details) is appended so the user sees where they're staying without
+// having to dig into the booking details. The renderer can split this on
+// the " — " separator if it wants to lay it out across multiple lines.
 export function formatTimelineEventDescription(event: TimelineEventRow): string {
   switch (event.type) {
     case 'flight': {
@@ -148,13 +163,16 @@ export function formatTimelineEventDescription(event: TimelineEventRow): string 
       return parts.join(' — ') || event.title
     }
 
-    case 'hotel': {
+    case 'hotel':
+    case 'airbnb':
+    case 'cruise': {
       const nights = event.end_date
         ? Math.round((new Date(event.end_date).getTime() - new Date(event.start_date).getTime()) / (1000 * 60 * 60 * 24))
         : null
       const nightsStr = nights ? `${nights} night${nights !== 1 ? 's' : ''}` : ''
       const checkOutStr = event.end_date ? `check-out ${event.end_date}` : ''
-      const parts = [nightsStr, checkOutStr].filter(Boolean)
+      const address = (event.details?.address as string) || ''
+      const parts = [nightsStr, checkOutStr, address].filter(Boolean)
       return parts.join(' — ') || ''
     }
 

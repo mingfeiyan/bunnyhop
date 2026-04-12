@@ -23,12 +23,16 @@ type TripRow = {
 }
 
 type EventRow = {
-  type: 'flight' | 'hotel' | 'activity'
+  type: 'flight' | 'hotel' | 'activity' | 'airbnb' | 'cruise'
   start_date: string
   end_date: string | null
   destination: string | null
   details: Record<string, unknown> | null
 }
+
+// Stay-style events all carry an address in details and bracket multiple
+// nights. Used by pickDestination to find a city to populate trip.destination.
+const STAY_TYPES = new Set(['hotel', 'airbnb', 'cruise'])
 
 // Pull the city out of a hotel address. The Claude parser produces addresses
 // in many shapes:
@@ -147,13 +151,13 @@ export function cityFromAddress(address: string): string {
 }
 
 // Compute the destination string from the events. Priority order:
-//   1. First hotel's address (city portion)
-//   2. First hotel's name (raw — usually contains a place name)
+//   1. First stay's (hotel/airbnb/cruise) address city
+//   2. First stay's name (raw — usually contains a place name)
 //   3. First flight's destination column (raw IATA — better than null)
 //   4. null (no events that imply a destination)
 function pickDestination(events: EventRow[]): string | null {
   for (const ev of events) {
-    if (ev.type !== 'hotel') continue
+    if (!STAY_TYPES.has(ev.type)) continue
     const details = ev.details ?? {}
     const address = typeof details.address === 'string' ? details.address.trim() : ''
     if (address) return cityFromAddress(address)

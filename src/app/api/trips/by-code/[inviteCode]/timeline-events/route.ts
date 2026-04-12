@@ -19,11 +19,13 @@ type IncomingEvent = {
   details?: Record<string, unknown>
 }
 
+const VALID_EVENT_TYPES = new Set(['flight', 'hotel', 'activity', 'airbnb', 'cruise'])
+
 function validateEvent(e: unknown): { ok: true; value: IncomingEvent } | { ok: false; error: string } {
   if (!e || typeof e !== 'object') return { ok: false, error: 'event must be an object' }
   const ev = e as IncomingEvent
-  if (ev.type !== 'flight' && ev.type !== 'hotel' && ev.type !== 'activity') {
-    return { ok: false, error: 'type must be "flight", "hotel", or "activity"' }
+  if (!ev.type || !VALID_EVENT_TYPES.has(ev.type)) {
+    return { ok: false, error: 'type must be one of: flight, hotel, airbnb, cruise, activity' }
   }
   if (!ev.title || typeof ev.title !== 'string') {
     return { ok: false, error: 'title is required' }

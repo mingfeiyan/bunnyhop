@@ -96,11 +96,15 @@ export type TimelineEvent = {
   dateUnclear: boolean
 }
 
-// Row type for the timeline_events table — structured booking data
+// Row type for the timeline_events table — structured booking data.
+// All five types share the same row shape; the type field controls how the
+// timeline page expands the event into render positions and how the card
+// renders the kicker. hotel/airbnb/cruise all use the check_in/check_out
+// phase pair; flight and activity use single phases.
 export type TimelineEventRow = {
   id: string
   trip_id: string
-  type: 'flight' | 'hotel' | 'activity'
+  type: 'flight' | 'hotel' | 'activity' | 'airbnb' | 'cruise'
   title: string
   start_date: string          // YYYY-MM-DD
   end_date: string | null     // YYYY-MM-DD

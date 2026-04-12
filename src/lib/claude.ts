@@ -5,7 +5,7 @@ const anthropic = new Anthropic({
 })
 
 export type ParsedEntry = {
-  type: 'flight' | 'hotel' | 'activity' | 'constraint' | 'note'
+  type: 'flight' | 'hotel' | 'activity' | 'airbnb' | 'cruise' | 'constraint' | 'note'
   raw_text: string
   details: Record<string, unknown>
 }
@@ -27,7 +27,7 @@ The input may contain ONE booking or MANY mixed together. Identify each distinct
 Return format (always an array, even for a single item):
 [
   {
-    "type": "flight" | "hotel" | "activity" | "constraint" | "note",
+    "type": "flight" | "hotel" | "airbnb" | "cruise" | "activity" | "constraint" | "note",
     "raw_text": "concise human-readable summary of THIS specific item",
     "details": { ... extracted structured fields ... }
   }
@@ -36,7 +36,9 @@ Return format (always an array, even for a single item):
 Rules:
 - Round-trip flights = TWO entries (one outbound, one return).
 - Each flight: type="flight", details has airline, flight_number, departure_time, arrival_time, date (YYYY-MM-DD), origin, destination.
-- Each hotel: type="hotel", details has name, address, check_in (YYYY-MM-DD), check_out (YYYY-MM-DD).
+- Each HOTEL or RESORT booking: type="hotel", details has name, address, check_in (YYYY-MM-DD), check_out (YYYY-MM-DD).
+- Each AIRBNB / VRBO / vacation rental booking: type="airbnb", same details shape as hotel (name, address, check_in, check_out). Detect by sender (airbnb.com, vrbo.com), the word "Airbnb" or "VRBO" in the body, or phrases like "your host" / "the listing" / "vacation rental".
+- Each CRUISE booking: type="cruise", details has name (the cruise itinerary or ship name, e.g. "Disney Cruise — 5-Night Bahamian"), address (the embark port, e.g. "Port Everglades, Fort Lauderdale, FL"), check_in (embark date), check_out (debark date), and any additional cruise_line / ship_name / itinerary fields you can extract.
 - Each CONFIRMED activity booking (e.g. scheduled tour, dinner reservation, spa appointment, museum tickets with a date — anything that has been booked and has a specific date): type="activity", details has name, date (YYYY-MM-DD), start_time, end_time, location, organizer, confirmation. ONLY use "activity" if the booking is real and has a date — not for vague wishes like "we want to go snorkeling".
 - Constraints/preferences/wishes/general info that aren't bookings: type="constraint" if it's a rule/limitation (e.g. "no water activities", "kid is afraid of heights", "vegetarian"), or type="note" for everything else (e.g. "traveling with husband and 2 kids"). Both have details with a "summary" or "description" field.
 - The "raw_text" field should be a SHORT summary of just THIS item (e.g. "United UA115 SFO→PPT, Jun 27 2026"), not the full input.

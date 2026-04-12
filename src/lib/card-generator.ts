@@ -16,10 +16,12 @@ function summarizeTimelineEvent(ev: TimelineEventRow): string {
       const time = ev.start_time ? ` at ${formatTime12h(ev.start_time)}` : ''
       return `[flight] ${ev.start_date}${time} — ${ev.title}${route ? ` (${route})` : ''}`
     }
-    case 'hotel': {
+    case 'hotel':
+    case 'airbnb':
+    case 'cruise': {
       const range = ev.end_date ? `${ev.start_date} → ${ev.end_date}` : ev.start_date
       const address = (ev.details?.address as string) || ''
-      return `[hotel] ${range} — ${ev.title}${address ? ` (${address})` : ''}`
+      return `[${ev.type}] ${range} — ${ev.title}${address ? ` (${address})` : ''}`
     }
     case 'activity': {
       const time = ev.start_time ? ` at ${formatTime12h(ev.start_time)}` : ''
