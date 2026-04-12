@@ -20,14 +20,14 @@ export default function PrivacyPage() {
           <ul className="mt-2 space-y-1 detail-mono" style={{ paddingLeft: '16px', listStyleType: 'disc' }}>
             <li><strong>Anthropic (Claude)</strong> — parses free-text booking details into structured data and generates trip recommendation cards. Your trip context (destination, dates, constraints, booking text) is sent to Claude for processing.</li>
             <li><strong>Google Gemini</strong> — generates editorial-style cover images for trips from the destination name.</li>
-            <li><strong>Google Places</strong> — fetches photos, ratings, and review counts for recommendation cards based on place names.</li>
+            <li><strong>Google Places</strong> — fetches photos, ratings, and review counts for recommendation cards. The query sent includes the card title and the trip destination (e.g., &quot;Monkeypod Kitchen Hawaii&quot;).</li>
           </ul>
           <p className="mt-2">These services process your data to provide functionality. We do not send data to these services for advertising, training, or any purpose beyond the features you use.</p>
         </section>
 
         <section>
           <MonoLabel className="block mb-2">gmail access</MonoLabel>
-          <p>If you or the site admin uses the Gmail integration to search for booking confirmations, the search is performed in real time and results are used only to extract booking details for your trip timeline. We do not store your email content, read emails beyond what you explicitly trigger, or share email data with anyone.</p>
+          <p>The site admin may use a Gmail integration (via developer tooling, not an in-app feature) to search for booking confirmations on your behalf and extract booking details for your trip timeline. This access is triggered manually by the admin, not automated. We do not store your email content, read emails beyond what is explicitly requested, or share email data with anyone. End users do not have direct Gmail access within the app.</p>
         </section>
 
         <section>

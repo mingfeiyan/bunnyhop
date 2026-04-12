@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  const publicRoutes = ['/login', '/auth/callback', '/invite', '/api']
+  const publicRoutes = ['/login', '/auth/callback', '/invite', '/api', '/privacy', '/terms']
   const isPublicRoute = publicRoutes.some(route => request.nextUrl.pathname.startsWith(route))
 
   // Skip auth check for public routes and homepage to avoid unnecessary Supabase calls
