@@ -4,7 +4,13 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/trips'
+  let next = searchParams.get('next') ?? '/trips'
+
+  // Prevent open redirect: next must be a relative path starting with /
+  // and must NOT start with // (protocol-relative URL → attacker-controlled domain).
+  if (!next.startsWith('/') || next.startsWith('//')) {
+    next = '/trips'
+  }
 
   if (code) {
     const supabase = await createClient()

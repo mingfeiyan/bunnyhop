@@ -1,0 +1,24 @@
+-- Security audit fixes:
+--
+-- 1. [CRITICAL] Fix trips SELECT policy that leaked all invite codes.
+--    The old policy had `using (is_trip_member(id) OR true)` — the
+--    `OR true` made it equivalent to `using (true)`, allowing any
+--    authenticated user to read all trip rows including invite codes.
+--    Replaced with `using (is_trip_member(id))` — only participants.
+--
+-- 2. The invite page now uses the service role for the code-to-trip
+--    lookup (since the user isn't a participant yet). This is safe
+--    because the invite page only returns the trip_id, not the full
+--    trip row, and only does so after confirming the invite code exists.
+
+-- Already applied via execute_sql above, but recorded here for the
+-- migration history:
+--
+-- DROP POLICY IF EXISTS "Anyone can read trip by invite code" ON trips;
+-- DROP POLICY IF EXISTS "Participants can view trips" ON trips;
+-- CREATE POLICY "Participants can view trips"
+--   ON trips FOR SELECT
+--   USING (is_trip_member(id));
+--
+-- (These statements ran directly against the live DB before this
+-- migration file was created. The migration file exists as documentation.)

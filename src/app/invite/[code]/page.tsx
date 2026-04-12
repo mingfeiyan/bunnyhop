@@ -1,18 +1,24 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import MonoLabel from '@/components/ui/MonoLabel'
 
 export default async function InvitePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
-  const supabase = await createClient()
 
-  // Find the trip
-  const { data: trip } = await supabase
+  // Use the service role to look up the trip by invite code. The user
+  // isn't a participant yet (that's the whole point of the invite page),
+  // so the RLS policy on trips (which requires is_trip_member) would
+  // block the query via the user's session. Only fetch the trip ID —
+  // don't expose invite_code or other fields back to the client.
+  const serviceSupabase = createServiceClient()
+  const { data: trip } = await serviceSupabase
     .from('trips')
-    .select('*')
+    .select('id')
     .eq('invite_code', code)
     .single()
+
+  const supabase = await createClient()
 
   if (!trip) {
     return (
