@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import PillButton from '@/components/ui/PillButton'
 import MonoLabel from '@/components/ui/MonoLabel'
 
-const API_DOCS_URL = 'https://github.com/mingfeiyan/bunnyhop/blob/main/docs/timeline-api.md'
+const API_DOCS_URL = 'https://github.com/mingfeiyan/bunnyhop/blob/main/docs/agent-guide.md'
 
 function buildAgentPrompt(endpoint: string): string {
   return `When you find confirmed travel bookings for my trip — flights, hotels, Airbnbs, cruises, or activities — POST them as structured JSON to:
