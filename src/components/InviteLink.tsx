@@ -49,6 +49,19 @@ Rules:
 - The invite code in the URL is the auth. No API key needed.
 - Always include details.address on stays — it's how the trip's destination auto-fills.
 
+To READ the trip state (timeline, group consensus, context, families), call:
+
+GET ${endpoint.replace('/timeline-events', '/summary')}
+
+This returns the full trip in one JSON response:
+- trip: title, destination, dates, participants
+- timeline: all confirmed bookings sorted by date
+- context: notes and constraints from the group
+- results: every recommendation card with its consensus (everyone_loves / mixed / hard_pass), score, and vote count
+- families: who's in which family group
+
+Use this to understand the group's preferences, see what's already booked, identify gaps in the itinerary, and plan further.
+
 Full API reference: ${API_DOCS_URL}`
 }
 
