@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import PageShell from '@/components/ui/PageShell'
@@ -13,6 +13,24 @@ export default function NewTripPage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [approved, setApproved] = useState<boolean | null>(null)
+
+  // Check if the current user is in the approved_creators whitelist.
+  // If not, they can't create trips — show a message instead of the form.
+  useEffect(() => {
+    async function checkApproval() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setApproved(false); return }
+      const { data } = await supabase
+        .from('approved_creators')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      setApproved(Boolean(data))
+    }
+    checkApproval()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -60,6 +78,64 @@ export default function NewTripPage() {
     }
 
     router.push(`/trips/${trip.id}`)
+  }
+
+  // Loading state while checking approval
+  if (approved === null) {
+    return (
+      <div className="theme-editorial-tree">
+        <PageShell back={{ href: '/trips', label: 'all trips' }}>
+          <div className="px-5 py-20 text-center">
+            <span className="label-mono">checking permissions…</span>
+          </div>
+        </PageShell>
+      </div>
+    )
+  }
+
+  // Not approved — show a message instead of the form
+  if (approved === false) {
+    return (
+      <>
+        <div className="theme-default-tree">
+          <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm text-center">
+              <h1 className="text-2xl font-bold mb-2">Can&apos;t create trips</h1>
+              <p className="text-gray-500 mb-6 text-sm">
+                You don&apos;t have permission to create new trips. Ask the trip admin to approve your account.
+              </p>
+              <button onClick={() => router.push('/trips')}
+                className="w-full bg-blue-600 text-white font-medium rounded-lg px-4 py-3 hover:bg-blue-700 transition">
+                Back to trips
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="theme-editorial-tree">
+          <PageShell back={{ href: '/trips', label: 'all trips' }}>
+            <PageHeader title="Can't create trips" />
+            <div className="px-5 py-8">
+              <p
+                style={{
+                  fontFamily: 'var(--font-serif)',
+                  fontSize: '17px',
+                  lineHeight: 1.5,
+                  margin: 0,
+                }}
+              >
+                You don&apos;t have permission to create new trips.
+              </p>
+              <p className="detail-mono mt-2" style={{ opacity: 0.7 }}>
+                Ask the trip admin to approve your account. You can still view and participate in trips you&apos;ve been invited to.
+              </p>
+              <div className="mt-6">
+                <PillButton href="/trips">← back to trips</PillButton>
+              </div>
+            </div>
+          </PageShell>
+        </div>
+      </>
+    )
   }
 
   return (
