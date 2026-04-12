@@ -16,6 +16,7 @@ import PillButton from '@/components/ui/PillButton'
 import MonoLabel from '@/components/ui/MonoLabel'
 import { tripCountdown } from '@/lib/trip-countdown'
 import { getFamilyColor } from '@/lib/colors'
+import { getUserFamilyMap } from '@/lib/family'
 
 export default async function TripHubPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params
@@ -29,34 +30,18 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
 
   if (!trip) notFound()
 
-  const { data: participants } = await supabase
-    .rpc('get_trip_participants_with_email', { p_trip_id: tripId })
+  // Run remaining queries in parallel after the trip guard
+  const [{ data: participants }, { data: { user } }, { data: cards }, userFamilyMap] = await Promise.all([
+    supabase.rpc('get_trip_participants_with_email', { p_trip_id: tripId }),
+    supabase.auth.getUser(),
+    supabase.from('cards').select('id').eq('trip_id', tripId),
+    getUserFamilyMap(supabase),
+  ])
 
-  const { data: { user } } = await supabase.auth.getUser()
   const isOrganizer = participants?.some((p: { user_id: string; role: string }) => p.user_id === user?.id && p.role === 'organizer') ?? false
-
-  const { data: cards } = await supabase
-    .from('cards')
-    .select('id')
-    .eq('trip_id', tripId)
 
   const cardCount = cards?.length ?? 0
   const participantCount = participants?.length ?? 0
-
-  // Build a family lookup for the participant list display
-  const { data: familyMembersData } = await supabase
-    .from('family_members')
-    .select('user_id, families(name, color)')
-
-  const userFamilyMap = new Map<string, { name: string; color: string }>()
-  for (const fm of (familyMembersData ?? []) as Array<Record<string, unknown>>) {
-    const uid = fm.user_id as string | null
-    const fam = Array.isArray(fm.families) ? fm.families[0] : fm.families
-    if (uid && fam && typeof fam === 'object') {
-      const { name, color } = fam as { name: string; color: string }
-      userFamilyMap.set(uid, { name, color })
-    }
-  }
 
   // Trip metadata may be null if the user created the trip with only a title.
   // Auto-fill kicks in once they add a hotel/flight via context. Until then,

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { computeOverlap, formatDateHeader } from '@/lib/timeline'
 import { tripCountdown } from '@/lib/trip-countdown'
+import { getUserFamilyMap } from '@/lib/family'
 import TimelineEventCard from '@/components/TimelineEventCard'
 import TimelineRealtimeWrapper from '@/components/TimelineRealtimeWrapper'
 import PageShell from '@/components/ui/PageShell'
@@ -71,25 +72,9 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
       (p: TripParticipant) => p.user_id === currentUserId && p.role === 'organizer'
     )
 
-    // Build a global family lookup: user_id → { familyName, familyColor }.
-    // Uses the global families/family_members tables (migration 014) instead
-    // of the old per-trip family_groups. Every user who's in a family gets
-    // their color automatically on any trip they participate in.
-    const { data: familyMembersData } = await supabase
-      .from('family_members')
-      .select('user_id, families(name, color)')
-
-    const userFamilyMap = new Map<string, { familyName: string | null; familyColor: string | null }>()
-    for (const fm of (familyMembersData ?? []) as Array<Record<string, unknown>>) {
-      const uid = fm.user_id as string | null
-      // Supabase returns the joined table as an object (many-to-one) but
-      // TypeScript infers it as array. Handle both shapes defensively.
-      const fam = Array.isArray(fm.families) ? fm.families[0] : fm.families
-      if (uid && fam && typeof fam === 'object') {
-        const { name, color } = fam as { name: string; color: string }
-        userFamilyMap.set(uid, { familyName: name, familyColor: color })
-      }
-    }
+    // Build a global family lookup: user_id → { name, color }.
+    // Uses the shared helper that queries families/family_members (migration 014).
+    const userFamilyMap = await getUserFamilyMap(supabase)
 
     const allEvents = (events ?? []) as TimelineEventRow[]
 
@@ -155,12 +140,12 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
     const familyDateMap = new Map<string, { earliest: string; latest: string }>()
     for (const ev of allEvents) {
       const family = userFamilyMap.get(ev.added_by)
-      if (!family?.familyName) continue
+      if (!family?.name) continue
       const earliest = ev.start_date
       const latest = ev.end_date ?? ev.start_date
-      const existing = familyDateMap.get(family.familyName)
+      const existing = familyDateMap.get(family.name)
       if (!existing) {
-        familyDateMap.set(family.familyName, { earliest, latest })
+        familyDateMap.set(family.name, { earliest, latest })
       } else {
         if (earliest < existing.earliest) existing.earliest = earliest
         if (latest > existing.latest) existing.latest = latest
@@ -268,8 +253,8 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
                             key={`${pos.event.id}-${pos.phase}`}
                             event={pos.event}
                             phase={pos.phase}
-                            familyName={family?.familyName ?? null}
-                            familyColor={family?.familyColor ?? null}
+                            familyName={family?.name ?? null}
+                            familyColor={family?.color ?? null}
                             canDelete={canDelete}
                           />
                         )

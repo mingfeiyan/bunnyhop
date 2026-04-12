@@ -4,25 +4,20 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-
-async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const { data } = await supabase
-    .from('approved_creators')
-    .select('is_admin')
-    .eq('user_id', user.id)
-    .eq('is_admin', true)
-    .maybeSingle()
-  return data ? user : null
-}
+import { verifyAdmin } from '@/lib/admin'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
   const admin = await verifyAdmin(supabase)
   if (!admin) return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
 
-  const body = await request.json()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
   const { action } = body
   const serviceSupabase = createServiceClient()
 

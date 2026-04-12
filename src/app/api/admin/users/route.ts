@@ -5,25 +5,14 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { verifyAdmin } from '@/lib/admin'
 
 export async function GET() {
   const supabase = await createClient()
 
-  // Verify the caller is an admin
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const { data: adminCheck } = await supabase
-    .from('approved_creators')
-    .select('is_admin')
-    .eq('user_id', user.id)
-    .eq('is_admin', true)
-    .maybeSingle()
-
-  if (!adminCheck) {
-    return NextResponse.json({ error: 'Not an admin' }, { status: 403 })
+  const admin = await verifyAdmin(supabase)
+  if (!admin) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
   }
 
   // Use service role to get all unique users with emails
@@ -42,7 +31,13 @@ export async function GET() {
   for (const p of participants ?? []) allUserIds.add(p.user_id)
   for (const c of creators ?? []) allUserIds.add(c.user_id)
 
-  // Get emails via auth.admin API
+  // Get emails via auth.admin API — single listUsers() call instead of N getUserById calls
+  const { data: { users: authUsers } } = await serviceSupabase.auth.admin.listUsers()
+  const emailMap = new Map<string, string>()
+  for (const u of authUsers) {
+    if (u.email) emailMap.set(u.id, u.email)
+  }
+
   const approvedMap = new Map(
     (creators ?? []).map(c => [c.user_id, c])
   )
@@ -56,9 +51,7 @@ export async function GET() {
   }> = []
 
   for (const uid of allUserIds) {
-    // Get email from auth.users via admin API
-    const { data: authUser } = await serviceSupabase.auth.admin.getUserById(uid)
-    const email = authUser?.user?.email ?? uid.slice(0, 8) + '...'
+    const email = emailMap.get(uid) ?? uid.slice(0, 8) + '...'
     const approved = approvedMap.get(uid)
     users.push({
       user_id: uid,

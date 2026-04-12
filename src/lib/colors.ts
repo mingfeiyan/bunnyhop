@@ -5,7 +5,7 @@
 //   - getColorClasses() returns Tailwind classes for backwards-compat with not-yet-ported components
 //
 // The 6 color KEY names (indigo, amber, etc.) are persisted in the database
-// (family_groups.color), so the keys MUST stay stable. Only the rendered visual changes.
+// (families.color), so the keys MUST stay stable. Only the rendered visual changes.
 
 export const COLOR_PALETTE = [
   { name: 'indigo', bg: 'bg-indigo-100', text: 'text-indigo-800', dot: 'bg-indigo-500', border: 'border-indigo-500' },

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getColorClasses, getFamilyColor } from '@/lib/colors'
+import { getFamilyColor } from '@/lib/colors'
 import { formatTime12h } from '@/lib/timeline-events'
 import EventCard from '@/components/ui/EventCard'
 import type { TimelineEventRow } from '@/types'
@@ -157,7 +157,6 @@ export default function TimelineEventCard({ event, phase, familyName, familyColo
 
   if (deleted) return null
 
-  const colors = familyColor ? getColorClasses(familyColor) : null
   const { icon, kicker, action } = describePhase(event, phase, familyName)
 
   // Editorial: time string for the 60px column. Stays don't show a time;

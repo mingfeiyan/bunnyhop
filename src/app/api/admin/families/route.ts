@@ -5,18 +5,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-
-async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const { data } = await supabase
-    .from('approved_creators')
-    .select('is_admin')
-    .eq('user_id', user.id)
-    .eq('is_admin', true)
-    .maybeSingle()
-  return data ? user : null
-}
+import { verifyAdmin } from '@/lib/admin'
 
 export async function GET() {
   const supabase = await createClient()
@@ -36,16 +25,17 @@ export async function GET() {
     .select('id, family_id, user_id, display_name, member_type, agent_identifier')
     .order('display_name')
 
-  // Get emails for human members
-  const memberWithEmails = await Promise.all(
-    (members ?? []).map(async m => {
-      if (m.user_id) {
-        const { data: authUser } = await serviceSupabase.auth.admin.getUserById(m.user_id)
-        return { ...m, email: authUser?.user?.email ?? null }
-      }
-      return { ...m, email: null }
-    })
-  )
+  // Get emails for human members — single listUsers() call instead of N getUserById calls
+  const { data: { users: authUsers } } = await serviceSupabase.auth.admin.listUsers()
+  const emailMap = new Map<string, string>()
+  for (const u of authUsers) {
+    if (u.email) emailMap.set(u.id, u.email)
+  }
+
+  const memberWithEmails = (members ?? []).map(m => ({
+    ...m,
+    email: m.user_id ? (emailMap.get(m.user_id) ?? null) : null,
+  }))
 
   // Group members by family
   const familyList = (families ?? []).map(f => ({

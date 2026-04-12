@@ -51,17 +51,6 @@ body {
   opacity: 0.8;
 }
 
-.hairline-h {
-  width: 100%;
-  height: 1px;
-  background: var(--stroke);
-}
-
-.hairline-v {
-  width: 1px;
-  background: var(--stroke);
-}
-
 .pill-btn {
   display: inline-block;
   border: 1px solid var(--stroke);

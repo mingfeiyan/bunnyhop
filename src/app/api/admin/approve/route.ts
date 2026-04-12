@@ -4,34 +4,32 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { verifyAdmin } from '@/lib/admin'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
 
-  // Verify the caller is an admin
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const admin = await verifyAdmin(supabase)
+  if (!admin) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
   }
 
-  const { data: adminCheck } = await supabase
-    .from('approved_creators')
-    .select('is_admin')
-    .eq('user_id', user.id)
-    .eq('is_admin', true)
-    .maybeSingle()
-
-  if (!adminCheck) {
-    return NextResponse.json({ error: 'Not an admin' }, { status: 403 })
+  let user_id: string | undefined
+  let action: string | undefined
+  try {
+    const body = await request.json()
+    user_id = body.user_id
+    action = body.action
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { user_id, action } = await request.json()
   if (!user_id || (action !== 'approve' && action !== 'revoke')) {
     return NextResponse.json({ error: 'user_id and action (approve|revoke) required' }, { status: 400 })
   }
 
   // Prevent revoking your own admin access
-  if (action === 'revoke' && user_id === user.id) {
+  if (action === 'revoke' && user_id === admin.id) {
     return NextResponse.json({ error: "Can't revoke your own access" }, { status: 400 })
   }
 
@@ -43,7 +41,7 @@ export async function POST(request: Request) {
       .upsert({
         user_id,
         is_admin: false,
-        approved_by: user.id,
+        approved_by: admin.id,
       }, { onConflict: 'user_id' })
 
     if (error) {
