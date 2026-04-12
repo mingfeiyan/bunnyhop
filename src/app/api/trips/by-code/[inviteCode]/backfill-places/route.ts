@@ -82,9 +82,23 @@ export async function POST(
         }
 
         // Full lookup: no place_id yet — fuzzy search on title + destination
-        // and patch metadata + image_url with whatever Places returns.
+        // and patch metadata + image_url with whatever Places returns. If the
+        // first attempt returns nothing, retry with the title's parenthetical
+        // text stripped (e.g., "Snoqualmie Falls (Seattle to CDA Road Trip
+        // Stop)" → "Snoqualmie Falls"), which fixes the case where Claude
+        // appended a contextual note that confuses Find Place from Text.
+        const cleanTitle = card.title.replace(/\s*\([^)]*\)/g, '').trim()
         const query = `${card.title} ${destination}`.trim()
-        const place = await searchPlace(query)
+        let place = await searchPlace(query)
+        if (
+          place.place_id === null &&
+          place.rating === null &&
+          place.rating_count === null &&
+          cleanTitle && cleanTitle !== card.title
+        ) {
+          const fallbackQuery = `${cleanTitle} ${destination}`.trim()
+          place = await searchPlace(fallbackQuery)
+        }
         if (place.place_id === null && place.rating === null && place.rating_count === null) {
           return { id: card.id, title: card.title, status: 'no_places_data' }
         }
