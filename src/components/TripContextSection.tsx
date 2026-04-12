@@ -36,7 +36,10 @@ export default function TripContextSection({ tripId, currentUserId, isOrganizer 
       .order('created_at', { ascending: true })
       .then(({ data }: { data: TripContext[] | null }) => { if (data) setContexts(data) })
 
-    // Subscribe to inserts and deletes
+    // Subscribe to inserts and deletes for cross-tab/cross-user sync.
+    // Same-tab inserts are handled optimistically by handleSubmit, which
+    // refetches the full list — the realtime INSERT below dedupes by id
+    // so we don't double-add a row that's already in local state.
     const channel = supabase
       .channel(`trip-context-${tripId}`)
       .on('postgres_changes', {
@@ -46,7 +49,7 @@ export default function TripContextSection({ tripId, currentUserId, isOrganizer 
         filter: `trip_id=eq.${tripId}`,
       }, (payload: { eventType: string; new: TripContext; old: { id: string } }) => {
         if (payload.eventType === 'INSERT') {
-          setContexts(prev => [...prev, payload.new])
+          setContexts(prev => prev.some(c => c.id === payload.new.id) ? prev : [...prev, payload.new])
         } else if (payload.eventType === 'DELETE') {
           setContexts(prev => prev.filter(c => c.id !== payload.old.id))
         }
@@ -85,6 +88,16 @@ export default function TripContextSection({ tripId, currentUserId, isOrganizer 
 
     if (res.ok) {
       setInput('')
+      // Optimistically refetch the trip_context list so the new entry shows
+      // up immediately, instead of waiting for the realtime broadcast (which
+      // can lag on the same tab). The realtime handler dedupes by id when
+      // the broadcast eventually arrives.
+      const { data } = await supabase
+        .from('trip_context')
+        .select('*')
+        .eq('trip_id', tripId)
+        .order('created_at', { ascending: true })
+      if (data) setContexts(data as TripContext[])
     } else {
       setError('Failed to add context. Please try again.')
     }

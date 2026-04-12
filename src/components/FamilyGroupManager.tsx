@@ -57,13 +57,25 @@ export default function FamilyGroupManager({ tripId, isOrganizer, participants }
     if (!newName.trim()) return
     setError(null)
 
-    const { error: insertError } = await supabase
+    // .select().single() returns the inserted row so we can append it to
+    // local state immediately. Without this we'd be waiting on the realtime
+    // broadcast to refetch the list, which lags on the same tab.
+    const { data: inserted, error: insertError } = await supabase
       .from('family_groups')
       .insert({ trip_id: tripId, name: newName.trim(), color: newColor })
+      .select()
+      .single()
 
     if (insertError) {
       setError(insertError.message)
       return
+    }
+
+    if (inserted) {
+      // Optimistically append. The realtime refetch handler dedupes by id
+      // when the broadcast eventually arrives so we don't double-add.
+      const newGroup = inserted as FamilyGroup
+      setGroups(prev => prev.some(g => g.id === newGroup.id) ? prev : [...prev, newGroup])
     }
     setNewName('')
     setShowForm(false)
@@ -96,7 +108,10 @@ export default function FamilyGroupManager({ tripId, isOrganizer, participants }
       setError(deleteError.message)
       return
     }
-    // Update local state to reflect unassignment
+    // Optimistically remove from local groups state and unassign any
+    // participants. The realtime refetch handler dedupes when the
+    // broadcast arrives.
+    setGroups(prev => prev.filter(g => g.id !== groupId))
     setLocalParticipants(prev =>
       prev.map(p => p.family_group_id === groupId ? { ...p, family_group_id: null } : p)
     )
