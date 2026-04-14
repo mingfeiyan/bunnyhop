@@ -79,6 +79,31 @@ export default async function InvitePage({ params }: { params: Promise<{ code: s
     redirect(`/login?next=/invite/${code}`)
   }
 
+  // Auto-link the joining user to the family this invite is for, so the
+  // admin doesn't have to do it manually after signup. Skipped on legacy
+  // (non-per-family) invite codes since there's no family to link to.
+  // Uses service role because family_members writes are admin-only via RLS.
+  if (resolved?.familyId) {
+    const { data: alreadyMember } = await serviceSupabase
+      .from('family_members')
+      .select('id')
+      .eq('family_id', resolved.familyId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (!alreadyMember) {
+      // Display name from email prefix; admin can rename later in /admin.
+      const displayName = user.email?.split('@')[0] ?? 'New member'
+      await serviceSupabase
+        .from('family_members')
+        .insert({
+          family_id: resolved.familyId,
+          user_id: user.id,
+          display_name: displayName,
+          member_type: 'human',
+        })
+    }
+  }
+
   // Check if already a participant
   const { data: existing } = await supabase
     .from('trip_participants')
