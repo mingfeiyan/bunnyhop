@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import TripContextSection from '@/components/TripContextSection'
 import InviteLink from '@/components/InviteLink'
+import CopyInviteButton from '@/components/CopyInviteButton'
 // FamilyGroupManager removed — family management now lives on /admin
 // via the global families system (migration 014).
 import EditTripDetailsButton from '@/components/EditTripDetailsButton'
@@ -156,7 +157,7 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
           <MonoLabel className="block mb-2">invited families · share these codes</MonoLabel>
           <div className="space-y-2">
             {otherInvites.map(inv => (
-              <div key={inv.inviteCode} className="flex items-center gap-3 detail-mono">
+              <div key={inv.inviteCode} className="flex items-center gap-3 flex-wrap detail-mono">
                 <span
                   style={{
                     width: '8px',
@@ -178,6 +179,8 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
                 >
                   {inv.inviteCode}
                 </code>
+                <CopyInviteButton inviteCode={inv.inviteCode} mode="link" />
+                <CopyInviteButton inviteCode={inv.inviteCode} mode="code" />
               </div>
             ))}
           </div>
