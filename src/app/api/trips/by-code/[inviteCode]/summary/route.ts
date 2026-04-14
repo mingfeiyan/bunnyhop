@@ -17,6 +17,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { checkApiSecurity } from '@/lib/api-security'
 import { byCodeLimiter } from '@/lib/rate-limit'
+import { resolveInviteCode } from '@/lib/trip-invite'
 import { NextResponse } from 'next/server'
 
 export async function GET(
@@ -34,16 +35,21 @@ export async function GET(
   const { inviteCode } = await params
   const supabase = createServiceClient()
 
-  // Look up trip by invite code
-  const { data: trip, error: tripError } = await supabase
-    .from('trips')
-    .select('id, title, destination, date_start, date_end, timezone')
-    .eq('invite_code', inviteCode)
-    .single()
-
-  if (tripError || !trip) {
+  const resolved = await resolveInviteCode<{
+    title: string
+    destination: string | null
+    date_start: string | null
+    date_end: string | null
+    timezone: string | null
+  }>(
+    supabase,
+    inviteCode,
+    'id, title, destination, date_start, date_end, timezone'
+  )
+  if (!resolved) {
     return NextResponse.json({ error: 'Invalid invite code' }, { status: 404 })
   }
+  const trip = resolved.trip
 
   // Fetch everything in parallel
   const [

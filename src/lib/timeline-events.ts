@@ -17,8 +17,10 @@ function coerceTime(value: unknown): string | null {
   return isValidTime(value) ? value : null
 }
 
-// Insertable shape — omits DB-managed fields and `added_by` (set by caller)
-export type TimelineEventInsert = Omit<TimelineEventRow, 'id' | 'created_at' | 'added_by'>
+// Insertable shape — omits DB-managed fields, `added_by` (set by caller),
+// and `family_id` (also set by the caller since it depends on who's posting,
+// not on how the entry was parsed).
+export type TimelineEventInsert = Omit<TimelineEventRow, 'id' | 'created_at' | 'added_by' | 'family_id'>
 
 // Convert a Claude-parsed entry into a timeline_events row.
 // Returns null if the entry can't be converted (e.g., missing required date,

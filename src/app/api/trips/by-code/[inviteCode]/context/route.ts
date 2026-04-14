@@ -4,6 +4,7 @@ import { parsedEntryToTimelineEvent } from '@/lib/timeline-events'
 import { autofillTripFromEvents, generateCoverIfNeeded } from '@/lib/trip-autofill'
 import { checkApiSecurity } from '@/lib/api-security'
 import { byCodeLimiter } from '@/lib/rate-limit'
+import { resolveInviteCode } from '@/lib/trip-invite'
 import { NextResponse } from 'next/server'
 
 export async function POST(
@@ -17,16 +18,12 @@ export async function POST(
 
   const supabase = createServiceClient()
 
-  // Find trip by invite code — the invite code IS the auth
-  const { data: trip } = await supabase
-    .from('trips')
-    .select('id, created_by')
-    .eq('invite_code', inviteCode)
-    .single()
-
-  if (!trip) {
+  const resolved = await resolveInviteCode(supabase, inviteCode, 'id, created_by')
+  if (!resolved) {
     return NextResponse.json({ error: 'Invalid invite code' }, { status: 404 })
   }
+  const trip = resolved.trip as { id: string; created_by: string }
+  const familyId = resolved.familyId
 
   const body = await request.json()
   const { text } = body
@@ -49,6 +46,7 @@ export async function POST(
           ...ev,
           trip_id: trip.id,
           added_by: trip.created_by,
+          family_id: familyId,
           source: 'agent',
         })
         continue

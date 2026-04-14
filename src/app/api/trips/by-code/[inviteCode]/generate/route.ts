@@ -12,6 +12,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { generateCards } from '@/lib/card-generator'
 import { checkApiSecurity } from '@/lib/api-security'
 import { byCodeLimiter } from '@/lib/rate-limit'
+import { resolveInviteCode } from '@/lib/trip-invite'
 import { NextResponse } from 'next/server'
 
 export async function POST(
@@ -24,15 +25,15 @@ export async function POST(
   const { inviteCode } = await params
   const supabase = createServiceClient()
 
-  // The invite code IS the auth — anyone with the code can trigger generation.
-  const { data: trip, error: tripError } = await supabase
-    .from('trips')
-    .select('*')
-    .eq('invite_code', inviteCode)
-    .single()
-  if (tripError || !trip) {
+  const resolved = await resolveInviteCode<{
+    destination: string | null
+    date_start: string | null
+    date_end: string | null
+  }>(supabase, inviteCode, '*')
+  if (!resolved) {
     return NextResponse.json({ error: 'Invalid invite code' }, { status: 404 })
   }
+  const trip = resolved.trip
 
   // Card generation needs a destination to seed Claude. Trips created via the
   // optional-fields flow may not have one until they add a hotel/flight.

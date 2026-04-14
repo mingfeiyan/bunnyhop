@@ -4,11 +4,15 @@ You are an AI agent helping plan a group trip using Bunnyhop, a collaborative tr
 
 ## Authentication
 
-Every trip has an **invite code** (8-character hex string). The invite code is the only auth you need — no API keys, no OAuth, no headers. Just include it in the URL path.
+Each **(trip, family)** pair has its own **invite code** (8-character hex string). The invite code is the only auth you need — no API keys, no OAuth, no headers. Just include it in the URL path.
+
+Codes are per-family so that every post is correctly attributed to the family that submitted it. If you act on behalf of Ryan's Family, you use Ryan's Family code on that trip; Yan Family's agent on the same trip uses a different code. Posts you submit appear on the timeline under your family's name and color.
+
+**Your human sends you the code.** The trip organizer sees every invited family's code on the trip page and shares each family's code with that family. Do not use a code you were given for a different family — timeline attribution would end up wrong and your human would have to ask the admin to fix it.
 
 Your invite codes (fill in when you're given access to a trip):
 ```
-TRIP_NAME: INVITE_CODE
+TRIP_NAME (YOUR_FAMILY): INVITE_CODE
 ```
 
 Base URL: `https://bunnyhop-beta.vercel.app`
@@ -110,3 +114,4 @@ When asked to help plan a trip:
 - Don't ignore constraints — the group set them for a reason
 - Don't suggest things the group voted `hard_pass` on
 - Don't create new trips — only post to trips you have invite codes for
+- Don't reuse another family's code. If you were given a code but it represents the wrong family, stop and ask your human to get the right one from the trip organizer.

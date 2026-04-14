@@ -9,6 +9,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { searchPlace, fetchPlacePhoto } from '@/lib/google-places'
 import { checkApiSecurity } from '@/lib/api-security'
 import { byCodeLimiter } from '@/lib/rate-limit'
+import { resolveInviteCode } from '@/lib/trip-invite'
 import { NextResponse } from 'next/server'
 
 type CardRow = {
@@ -37,14 +38,15 @@ export async function POST(
   const { inviteCode } = await params
   const supabase = createServiceClient()
 
-  const { data: trip, error: tripError } = await supabase
-    .from('trips')
-    .select('id, destination')
-    .eq('invite_code', inviteCode)
-    .single()
-  if (tripError || !trip) {
+  const resolved = await resolveInviteCode<{ destination: string | null }>(
+    supabase,
+    inviteCode,
+    'id, destination'
+  )
+  if (!resolved) {
     return NextResponse.json({ error: 'Invalid invite code' }, { status: 404 })
   }
+  const trip = resolved.trip
 
   const { data: cards, error: cardsError } = await supabase
     .from('cards')

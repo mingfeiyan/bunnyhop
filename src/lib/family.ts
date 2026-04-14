@@ -33,3 +33,18 @@ export async function getUserFamilyMap(
   }
   return map
 }
+
+// Returns Map<family_id, { name, color }>. Used by the timeline page to
+// resolve an event's family attribution directly via timeline_events.family_id
+// (the canonical source since migration 019) without going through user_id.
+export async function getFamilyMap(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>
+): Promise<Map<string, FamilyInfo>> {
+  const { data } = await supabase.from('families').select('id, name, color')
+  const map = new Map<string, FamilyInfo>()
+  for (const f of (data ?? []) as Array<{ id: string; name: string; color: string }>) {
+    map.set(f.id, { name: f.name, color: f.color })
+  }
+  return map
+}

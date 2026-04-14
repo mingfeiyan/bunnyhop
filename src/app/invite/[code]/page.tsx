@@ -6,17 +6,27 @@ import MonoLabel from '@/components/ui/MonoLabel'
 export default async function InvitePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
 
-  // Use the service role to look up the trip by invite code. The user
-  // isn't a participant yet (that's the whole point of the invite page),
-  // so the RLS policy on trips (which requires is_trip_member) would
-  // block the query via the user's session. Only fetch the trip ID —
-  // don't expose invite_code or other fields back to the client.
+  // Use the service role to look up the (trip, family) pair by invite code.
+  // The user isn't a participant yet (that's the whole point of the invite
+  // page), so the RLS policy on trips (which requires is_trip_member) would
+  // block the query via the user's session.
   const serviceSupabase = createServiceClient()
-  const { data: trip } = await serviceSupabase
-    .from('trips')
-    .select('id')
-    .eq('invite_code', code)
-    .single()
+  const resolved = await (async () => {
+    const { data: tfi } = await serviceSupabase
+      .from('trip_family_invites')
+      .select('trip_id, family_id')
+      .eq('invite_code', code)
+      .maybeSingle()
+    if (tfi) return { tripId: tfi.trip_id as string, familyId: tfi.family_id as string }
+    const { data: legacy } = await serviceSupabase
+      .from('trips')
+      .select('id')
+      .eq('invite_code', code)
+      .maybeSingle()
+    if (legacy) return { tripId: legacy.id as string, familyId: null }
+    return null
+  })()
+  const trip = resolved ? { id: resolved.tripId } : null
 
   const supabase = await createClient()
 

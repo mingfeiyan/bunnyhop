@@ -106,6 +106,7 @@ export type TimelineEventRow = {
   reference: string | null
   details: Record<string, unknown>
   added_by: string
+  family_id: string | null
   source: 'manual' | 'agent' | 'email'
   created_at: string
 }

@@ -2,6 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { autofillTripFromEvents, generateCoverIfNeeded } from '@/lib/trip-autofill'
 import { checkApiSecurity } from '@/lib/api-security'
 import { byCodeLimiter } from '@/lib/rate-limit'
+import { resolveInviteCode } from '@/lib/trip-invite'
 import { NextResponse } from 'next/server'
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -57,16 +58,14 @@ export async function POST(
   const { inviteCode } = await params
   const supabase = createServiceClient()
 
-  // Find trip by invite code — the invite code IS the auth
-  const { data: trip, error: tripError } = await supabase
-    .from('trips')
-    .select('id, created_by')
-    .eq('invite_code', inviteCode)
-    .single()
-
-  if (tripError || !trip) {
+  // Resolve code to (trip, family). Since migration 019, codes are per-family,
+  // so the family_id tells us who's posting and drives attribution on insert.
+  const resolved = await resolveInviteCode(supabase, inviteCode, 'id, created_by')
+  if (!resolved) {
     return NextResponse.json({ error: 'Invalid invite code' }, { status: 404 })
   }
+  const trip = resolved.trip as { id: string; created_by: string }
+  const familyId = resolved.familyId
 
   const body = await request.json()
   const incoming = Array.isArray(body) ? body : [body]
@@ -98,6 +97,7 @@ export async function POST(
     reference: ev.reference ?? null,
     details: ev.details ?? {},
     added_by: trip.created_by,
+    family_id: familyId,
     source: 'agent',
   }))
 

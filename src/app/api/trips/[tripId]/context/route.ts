@@ -33,6 +33,14 @@ export async function POST(
     return NextResponse.json({ error: 'Not a trip participant' }, { status: 403 })
   }
 
+  // Resolve the poster's family for event attribution (family_id on row).
+  const { data: fm } = await supabase
+    .from('family_members')
+    .select('family_id')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  const posterFamilyId = fm?.family_id ?? null
+
   const { text } = await request.json()
   if (!text || typeof text !== 'string') {
     return NextResponse.json({ error: 'Text is required' }, { status: 400 })
@@ -55,6 +63,7 @@ export async function POST(
           ...ev,
           trip_id: tripId,
           added_by: user.id,
+          family_id: posterFamilyId,
           source: 'manual',
         })
         continue

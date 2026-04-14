@@ -40,6 +40,40 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
 
   const isOrganizer = participants?.some((p: { user_id: string; role: string }) => p.user_id === user?.id && p.role === 'organizer') ?? false
 
+  // Read the per-family invite codes for this trip. RLS returns:
+  //   - Organizer → every family's code on the trip (so they can share).
+  //   - Member    → only their own family's code.
+  // Migration 019 added the table; 021/023 scoped the SELECT policy.
+  const { data: invitesRaw } = await supabase
+    .from('trip_family_invites')
+    .select('invite_code, families(id, name, color)')
+    .eq('trip_id', tripId)
+  const invites = (invitesRaw ?? []).map(row => {
+    const fam = Array.isArray(row.families) ? row.families[0] : row.families
+    const f = fam as { id: string; name: string; color: string } | null
+    return {
+      inviteCode: row.invite_code as string,
+      familyId: f?.id ?? null,
+      familyName: f?.name ?? 'Unknown family',
+      familyColor: f?.color ?? 'indigo',
+    }
+  })
+
+  // Pick the code to hand to this user's own agent. Falls back to the legacy
+  // trips.invite_code only if they have no family assignment.
+  const userFamilyId = user ? [...userFamilyMap.entries()].find(([uid]) => uid === user.id)?.[0] : null
+  const myFamilyId = user
+    ? (await supabase.from('family_members').select('family_id').eq('user_id', user.id).maybeSingle()).data?.family_id
+    : null
+  void userFamilyId // (retained for future UX; currently myFamilyId drives display)
+  const myInvite = invites.find(i => i.familyId === myFamilyId)
+  const userInviteCode: string = myInvite?.inviteCode ?? trip.invite_code
+
+  // Organizer-only: show every invited family's code so they can share.
+  const otherInvites = isOrganizer
+    ? invites.filter(i => i.familyId !== myFamilyId)
+    : []
+
   const cardCount = cards?.length ?? 0
   const participantCount = participants?.length ?? 0
 
@@ -109,10 +143,46 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
           pills wrap together on narrow screens. */}
       <section className="px-5 py-5 border-b border-stroke">
         <InviteLink
-          inviteCode={trip.invite_code}
+          inviteCode={userInviteCode}
           leadingButtons={<EditTripDetailsButton trip={trip} isOrganizer={isOrganizer} />}
         />
       </section>
+
+      {/* Organizer-only: per-family codes to share with other invited families.
+          Each family's agent posts using its own code so timeline attribution
+          lands in the right family. */}
+      {isOrganizer && otherInvites.length > 0 && (
+        <section className="px-5 py-5 border-b border-stroke">
+          <MonoLabel className="block mb-2">invited families · share these codes</MonoLabel>
+          <div className="space-y-2">
+            {otherInvites.map(inv => (
+              <div key={inv.inviteCode} className="flex items-center gap-3 detail-mono">
+                <span
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: getFamilyColor(inv.familyColor),
+                    flexShrink: 0,
+                  }}
+                />
+                <span>{inv.familyName}</span>
+                <code
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '13px',
+                    background: 'var(--cream-dark, #f0ebe0)',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                  }}
+                >
+                  {inv.inviteCode}
+                </code>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Main actions: timeline, swipe/generate, results */}
       <DaySection title="Explore">

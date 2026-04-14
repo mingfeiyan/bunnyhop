@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { computeOverlap, formatDateHeader } from '@/lib/timeline'
 import { tripCountdown } from '@/lib/trip-countdown'
-import { getUserFamilyMap } from '@/lib/family'
+import { getUserFamilyMap, getFamilyMap } from '@/lib/family'
 import TimelineRealtimeWrapper from '@/components/TimelineRealtimeWrapper'
 import TimelineFilterableContent from '@/components/TimelineFilterableContent'
 import PageShell from '@/components/ui/PageShell'
@@ -51,9 +51,20 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
       (p: TripParticipant) => p.user_id === currentUserId && p.role === 'organizer'
     )
 
-    // Build a global family lookup: user_id → { name, color }.
-    // Uses the shared helper that queries families/family_members (migration 014).
-    const userFamilyMap = await getUserFamilyMap(supabase)
+    // Two family lookups:
+    // - familyMap: family_id → { name, color }, the canonical path since
+    //   migration 019 (timeline_events.family_id is set on insert).
+    // - userFamilyMap: user_id → { name, color }, fallback for rows without
+    //   family_id and for other UI that keys off user (participant list).
+    const [familyMap, userFamilyMap] = await Promise.all([
+      getFamilyMap(supabase),
+      getUserFamilyMap(supabase),
+    ])
+
+    const familyForEvent = (ev: TimelineEventRow) => {
+      if (ev.family_id) return familyMap.get(ev.family_id)
+      return userFamilyMap.get(ev.added_by)
+    }
 
     const allEvents = (events ?? []) as TimelineEventRow[]
 
@@ -118,7 +129,7 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
     // Compute overlap based on each family's earliest start_date and latest end_date (or start_date)
     const familyDateMap = new Map<string, { earliest: string; latest: string }>()
     for (const ev of allEvents) {
-      const family = userFamilyMap.get(ev.added_by)
+      const family = familyForEvent(ev)
       if (!family?.name) continue
       const earliest = ev.start_date
       const latest = ev.end_date ?? ev.start_date
@@ -147,7 +158,7 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
       canDelete: boolean
     }
     const annotated: AnnotatedPosition[] = positions.map(pos => {
-      const family = userFamilyMap.get(pos.event.added_by)
+      const family = familyForEvent(pos.event)
       return {
         ...pos,
         familyName: family?.name ?? null,

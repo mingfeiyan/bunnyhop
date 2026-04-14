@@ -74,6 +74,14 @@ export async function POST(
     return NextResponse.json({ error: 'Not a trip participant' }, { status: 403 })
   }
 
+  // Resolve the poster's family for attribution (family_id on the row).
+  const { data: fm } = await supabase
+    .from('family_members')
+    .select('family_id')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  const posterFamilyId = fm?.family_id ?? null
+
   const body = await request.json()
   const incoming = Array.isArray(body) ? body : [body]
   if (incoming.length === 0) {
@@ -102,6 +110,7 @@ export async function POST(
     reference: ev.reference ?? null,
     details: ev.details ?? {},
     added_by: user.id,
+    family_id: posterFamilyId,
     source: 'manual',
   }))
 

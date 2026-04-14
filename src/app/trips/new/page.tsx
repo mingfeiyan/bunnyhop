@@ -6,7 +6,11 @@ import { createClient } from '@/lib/supabase/client'
 import PageShell from '@/components/ui/PageShell'
 import PageHeader from '@/components/ui/PageHeader'
 import PillButton from '@/components/ui/PillButton'
+import MonoLabel from '@/components/ui/MonoLabel'
 import { EditorialInput } from '@/components/ui/EditorialInput'
+import { getFamilyColor } from '@/lib/colors'
+
+type Family = { id: string; name: string; color: string }
 
 export default function NewTripPage() {
   const router = useRouter()
@@ -14,23 +18,43 @@ export default function NewTripPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [approved, setApproved] = useState<boolean | null>(null)
+  const [families, setFamilies] = useState<Family[]>([])
+  const [selectedFamilyIds, setSelectedFamilyIds] = useState<Set<string>>(new Set())
+  const [userFamilyId, setUserFamilyId] = useState<string | null>(null)
 
-  // Check if the current user is in the approved_creators whitelist.
-  // If not, they can't create trips — show a message instead of the form.
+  // Check approval + load families in parallel. Families are admin-curated
+  // (migration 014), so the creator picks from a global list to invite.
   useEffect(() => {
-    async function checkApproval() {
+    async function init() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setApproved(false); return }
-      const { data } = await supabase
-        .from('approved_creators')
-        .select('user_id')
-        .eq('user_id', user.id)
-        .maybeSingle()
-      setApproved(Boolean(data))
+      const [{ data: approvedRow }, { data: fams }, { data: fm }] = await Promise.all([
+        supabase.from('approved_creators').select('user_id').eq('user_id', user.id).maybeSingle(),
+        supabase.from('families').select('id, name, color').order('name'),
+        supabase.from('family_members').select('family_id').eq('user_id', user.id).maybeSingle(),
+      ])
+      setApproved(Boolean(approvedRow))
+      setFamilies(fams ?? [])
+      // Pre-select the creator's own family so their code is auto-generated too.
+      // (The trigger already creates it when they're added as participant, so
+      // this is just a UI hint — not an actual bug if skipped.)
+      if (fm?.family_id) {
+        setUserFamilyId(fm.family_id)
+        setSelectedFamilyIds(new Set([fm.family_id]))
+      }
     }
-    checkApproval()
+    init()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  function toggleFamily(id: string) {
+    setSelectedFamilyIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -63,10 +87,26 @@ export default function NewTripPage() {
       return
     }
 
-    // Add creator as organizer
+    // Add creator as organizer. The ensure_trip_family_invite trigger fires
+    // here and creates a trip_family_invites row for the creator's own family.
     await supabase
       .from('trip_participants')
       .insert({ trip_id: trip.id, user_id: user.id, role: 'organizer' })
+
+    // Create invite codes for the other families the creator picked.
+    // The creator's own family is skipped (already created by the trigger).
+    const otherFamilies = [...selectedFamilyIds].filter(id => id !== userFamilyId)
+    if (otherFamilies.length > 0) {
+      const rows = otherFamilies.map(family_id => ({ trip_id: trip.id, family_id }))
+      const { error: inviteError } = await supabase
+        .from('trip_family_invites')
+        .insert(rows)
+      if (inviteError) {
+        // Don't block trip creation — organizer can add families later from
+        // the trip page. But surface the error so the user knows.
+        console.error('Failed to create family invites:', inviteError)
+      }
+    }
 
     // If the user filled in destination at creation, kick off cover gen now.
     // Otherwise it'll fire from autofillTripFromEvents the moment the first
@@ -179,6 +219,54 @@ export default function NewTripPage() {
           hint="IANA timezone for displaying local times"
           containerClassName="mb-6"
         />
+
+        {families.length > 0 && (
+          <div className="mb-6">
+            <MonoLabel className="block mb-2">invite families</MonoLabel>
+            <p className="detail-mono mb-3" style={{ opacity: 0.7 }}>
+              Each family gets its own invite code. You&apos;ll see every code on
+              the trip page so you can share it with them.
+            </p>
+            <div className="space-y-2">
+              {families.map(f => {
+                const checked = selectedFamilyIds.has(f.id)
+                const isSelf = f.id === userFamilyId
+                return (
+                  <label
+                    key={f.id}
+                    className="flex items-center gap-3 cursor-pointer"
+                    style={{ opacity: isSelf ? 0.6 : 1 }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => !isSelf && toggleFamily(f.id)}
+                      disabled={isSelf}
+                    />
+                    <span
+                      style={{
+                        width: '10px',
+                        height: '10px',
+                        borderRadius: '50%',
+                        background: getFamilyColor(f.color),
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-serif)',
+                        fontSize: '16px',
+                      }}
+                    >
+                      {f.name}
+                    </span>
+                    {isSelf && <span className="label-mono" style={{ opacity: 0.6 }}>your family · auto-included</span>}
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {error && (
           <p className="detail-mono mb-3" style={{ color: 'var(--consensus-pass)' }}>
