@@ -157,7 +157,7 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
           <MonoLabel className="block mb-2">invited families · share these codes</MonoLabel>
           <div className="space-y-2">
             {otherInvites.map(inv => (
-              <div key={inv.inviteCode} className="flex items-center gap-3 flex-wrap detail-mono">
+              <div key={inv.inviteCode} className="flex items-center gap-3 detail-mono">
                 <span
                   style={{
                     width: '8px',
@@ -168,19 +168,7 @@ export default async function TripHubPage({ params }: { params: Promise<{ tripId
                   }}
                 />
                 <span>{inv.familyName}</span>
-                <code
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '13px',
-                    background: 'var(--cream-dark, #f0ebe0)',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                  }}
-                >
-                  {inv.inviteCode}
-                </code>
                 <CopyInviteButton inviteCode={inv.inviteCode} mode="link" />
-                <CopyInviteButton inviteCode={inv.inviteCode} mode="code" />
               </div>
             ))}
           </div>
