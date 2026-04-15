@@ -15,6 +15,18 @@ export async function POST(
   const { tripId } = await params
   const supabase = await createClient()
 
+  // Optional count from the generate page's picker. Silently ignore anything
+  // out of range so a bad client can't ask Claude for 10000 cards.
+  let targetCount: number | undefined
+  try {
+    const body = await request.clone().json() as { count?: unknown } | null
+    if (body && typeof body.count === 'number' && body.count >= 5 && body.count <= 30) {
+      targetCount = Math.round(body.count)
+    }
+  } catch {
+    // No body or invalid JSON — fall back to generator default.
+  }
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -76,6 +88,7 @@ export async function POST(
       contexts: contextsRes.data ?? [],
       timelineEvents: timelineRes.data ?? [],
       existingTitles,
+      targetCount,
     })
   } catch (err) {
     console.error('Card generation failed:', err)

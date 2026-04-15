@@ -145,3 +145,37 @@ export async function generateCoverImage(destination: string): Promise<Generated
   }
   return callGeminiContent(model, apiKey, prompt)
 }
+
+export type CardImageInput = {
+  title: string
+  description: string | null
+  category: 'restaurant' | 'activity' | 'sightseeing'
+  destination: string
+}
+
+// Card-specific prompt. Distinct from the trip-cover prompt: this runs as a
+// fallback for cards that have no Google Places photo (abstract activities
+// like "beach bonfire"). Portrait 3:4 to match the FlipCard aspect ratio.
+function buildCardPrompt({ title, description, category, destination }: CardImageInput): string {
+  const desc = description?.trim() ? ` ${description.trim()}` : ''
+  return [
+    `Editorial magazine photograph illustrating a ${category} recommendation: "${title}" in ${destination}.${desc}`,
+    `Portrait orientation 3:4, muted natural tones, soft golden-hour light, film grain, minimal composition.`,
+    `No text, captions, logos, or overlays. No people in the foreground.`,
+  ].join(' ')
+}
+
+// Generate one card fallback image. Same two-path dispatch as generateCoverImage.
+export async function generateCardImage(input: CardImageInput): Promise<GeneratedImage | null> {
+  const apiKey = readApiKey()
+  if (!apiKey) {
+    throw new Error('No Gemini API key found (checked GOOGLE_GEMINI_API_KEY, GEMINI_API_KEY, GOOGLE_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, GOOGLE_AI_API_KEY)')
+  }
+  const model = process.env.GEMINI_IMAGE_MODEL || DEFAULT_MODEL
+  const prompt = buildCardPrompt(input)
+
+  if (model.startsWith('imagen-')) {
+    return callImagen(model, apiKey, prompt)
+  }
+  return callGeminiContent(model, apiKey, prompt)
+}

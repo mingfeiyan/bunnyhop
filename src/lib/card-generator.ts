@@ -62,6 +62,16 @@ export type GenerateCardsOptions = {
   contexts?: TripContext[]
   timelineEvents?: TimelineEventRow[]
   existingTitles?: string[]
+  targetCount?: number               // how many cards to generate (default 20)
+}
+
+// Proportional split: ~40% restaurants, ~40% activities, ~20% sightseeing,
+// with a guard that every category gets at least 1.
+function categorySplit(total: number): { restaurants: number; activities: number; sightseeing: number } {
+  const restaurants = Math.max(1, Math.round(total * 0.4))
+  const sightseeing = Math.max(1, Math.round(total * 0.2))
+  const activities = Math.max(1, total - restaurants - sightseeing)
+  return { restaurants, activities, sightseeing }
 }
 
 export async function generateCards(opts: GenerateCardsOptions): Promise<GeneratedCard[]> {
@@ -72,7 +82,9 @@ export async function generateCards(opts: GenerateCardsOptions): Promise<Generat
     contexts = [],
     timelineEvents = [],
     existingTitles = [],
+    targetCount = 20,
   } = opts
+  const split = categorySplit(targetCount)
 
   const contextSummary = contexts
     .map(c => `[${c.type}] ${c.raw_text}`)
@@ -95,7 +107,7 @@ export async function generateCards(opts: GenerateCardsOptions): Promise<Generat
     max_tokens: 8000,
     messages: [{
       role: 'user',
-      content: `You are a travel recommendation expert. Generate 20-25 recommendations for a trip.
+      content: `You are a travel recommendation expert. Generate exactly ${targetCount} recommendations for a trip.
 
 Destination: ${destination}
 Dates: ${datesLine}
@@ -103,7 +115,7 @@ ${timelineSummary ? `\nConfirmed bookings (use these to anchor recommendations â
 ${contextSummary ? `\nTraveler notes & constraints:\n${contextSummary}` : ''}
 ${existingList}
 
-Return a JSON array (no markdown, no code fences) of recommendations. Mix of restaurants (8-10), activities (8-10), and sightseeing (4-6).
+Return a JSON array (no markdown, no code fences) of exactly ${targetCount} recommendations. Aim for roughly ${split.restaurants} restaurants, ${split.activities} activities, and ${split.sightseeing} sightseeing items.
 
 Each item:
 {

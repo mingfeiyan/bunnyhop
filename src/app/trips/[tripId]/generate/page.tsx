@@ -1,100 +1,32 @@
-'use client'
+import { createClient } from '@/lib/supabase/server'
+import { notFound } from 'next/navigation'
+import GenerateClient from './GenerateClient'
 
-import { useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import PageShell from '@/components/ui/PageShell'
-import PageHeader from '@/components/ui/PageHeader'
-import PillButton from '@/components/ui/PillButton'
-import MonoLabel from '@/components/ui/MonoLabel'
+// Default card count from trip duration. Shorter trips don't need 25
+// recommendations; longer trips can absorb more. Unknown dates → 25.
+function defaultCountFromDuration(dateStart: string | null, dateEnd: string | null): number {
+  if (!dateStart || !dateEnd) return 25
+  const start = new Date(dateStart)
+  const end = new Date(dateEnd)
+  const nights = Math.max(0, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)))
+  if (nights <= 3) return 10
+  if (nights <= 6) return 15
+  return 25
+}
 
-export default function GeneratePage() {
-  const { tripId } = useParams<{ tripId: string }>()
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [count, setCount] = useState<number | null>(null)
-  const [error, setError] = useState<string | null>(null)
+export default async function GeneratePage({ params }: { params: Promise<{ tripId: string }> }) {
+  const { tripId } = await params
+  const supabase = await createClient()
 
-  async function handleGenerate() {
-    setLoading(true)
-    setError(null)
-    const res = await fetch(`/api/trips/${tripId}/generate`, { method: 'POST' })
-    const data = await res.json()
-    if (!res.ok) {
-      setError(data.error ?? 'Failed to generate cards. Please try again.')
-      setLoading(false)
-      return
-    }
-    setCount(data.count ?? 0)
-    setLoading(false)
-  }
+  const { data: trip } = await supabase
+    .from('trips')
+    .select('id, date_start, date_end')
+    .eq('id', tripId)
+    .single()
 
-  return (
-    <PageShell back={{ href: `/trips/${tripId}`, label: 'back to trip' }} maxWidth="sm">
-      <PageHeader kicker="generate" title="Recommendations" />
+  if (!trip) notFound()
 
-      <div className="px-5 py-8">
-        {count === null ? (
-          <>
-            <p
-              style={{
-                fontFamily: 'var(--font-serif)',
-                fontSize: '17px',
-                lineHeight: 1.5,
-                margin: 0,
-              }}
-            >
-              AI will craft a deck of personalized cards from your destination, dates, and any context you&apos;ve added.
-            </p>
-            <p className="detail-mono mt-2" style={{ opacity: 0.7 }}>
-              Takes about a minute. Photos and ratings populate after.
-            </p>
-            {error && (
-              <p
-                className="detail-mono mt-4"
-                style={{ color: 'var(--consensus-pass)' }}
-              >
-                {error}
-              </p>
-            )}
-            <div className="mt-6">
-              <PillButton onClick={handleGenerate} disabled={loading} size="md">
-                {loading ? 'generating…' : 'generate cards'}
-              </PillButton>
-            </div>
-          </>
-        ) : (
-          <>
-            <MonoLabel className="block mb-2">ready</MonoLabel>
-            <h2
-              style={{
-                fontFamily: 'var(--font-serif)',
-                fontSize: '32px',
-                fontWeight: 400,
-                margin: 0,
-                letterSpacing: '-0.02em',
-                lineHeight: 1.1,
-              }}
-            >
-              {count} cards waiting
-            </h2>
-            <p
-              style={{
-                fontFamily: 'var(--font-serif)',
-                fontSize: '15px',
-                fontStyle: 'italic',
-                opacity: 0.8,
-                marginTop: '8px',
-                marginBottom: '24px',
-              }}
-            >
-              Your personalized deck is ready to swipe.
-            </p>
-            <PillButton href={`/trips/${tripId}/swipe`} size="md">
-              start swiping →
-            </PillButton>
-          </>
-        )}
-      </div>
-    </PageShell>
-  )
+  const defaultCount = defaultCountFromDuration(trip.date_start, trip.date_end)
+
+  return <GenerateClient tripId={tripId} defaultCount={defaultCount} />
 }
