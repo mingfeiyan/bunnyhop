@@ -95,7 +95,9 @@ export default function SwipeDeck({ cards, destination, onSwipe }: Props) {
       <div className="relative" style={{ aspectRatio: '3 / 4' }}>
         {cards.length > 1 && (
           <div className="absolute inset-0" style={{ transform: 'scale(0.95)', opacity: 0.5 }}>
-            <FlipCard card={cards[1]} destination={destination} />
+            {/* key={card.id} forces a fresh mount per card so FlipCard's
+                internal `flipped` state doesn't leak onto the next card. */}
+            <FlipCard key={cards[1].id} card={cards[1]} destination={destination} />
           </div>
         )}
 
@@ -126,7 +128,7 @@ export default function SwipeDeck({ cards, destination, onSwipe }: Props) {
             )}
           </div>
 
-          <FlipCard card={currentCard} destination={destination} />
+          <FlipCard key={currentCard.id} card={currentCard} destination={destination} />
         </div>
       </div>
 

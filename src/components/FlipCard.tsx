@@ -154,15 +154,23 @@ export default function FlipCard({ card, destination }: Props) {
         </div>
 
         {/* Back */}
+        {/* stopPropagation on pointer events prevents the SwipeDeck drag
+            handler from capturing touches that start on the back face, so a
+            user trying to scroll long descriptions can't accidentally swipe
+            the card. touchAction:'pan-y' overrides the parent's touch-none
+            so the native vertical scroll gesture works on mobile. */}
         <div
-          className="absolute inset-0 overflow-hidden flex flex-col"
+          className="absolute inset-0 overflow-y-auto flex flex-col"
           style={{
             backfaceVisibility: 'hidden',
             transform: 'rotateY(180deg)',
             border: '1px solid var(--stroke)',
             background: 'var(--cream)',
             padding: '20px',
+            touchAction: 'pan-y',
           }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerMove={(e) => e.stopPropagation()}
         >
           <MonoLabel className="mb-2">{card.category}</MonoLabel>
           <h2
@@ -232,20 +240,28 @@ export default function FlipCard({ card, destination }: Props) {
             </p>
           )}
 
-          <div className="mt-auto detail-mono space-y-1">
+          <div className="mt-auto pt-4 detail-mono space-y-1">
             {card.metadata.address ? <p style={{ margin: 0 }}>📍 {card.metadata.address as string}</p> : null}
             {card.metadata.hours ? <p style={{ margin: 0 }}>🕐 {card.metadata.hours as string}</p> : null}
             {card.metadata.booking_required ? <p style={{ margin: 0 }}>📋 booking required</p> : null}
             {card.metadata.duration ? <p style={{ margin: 0 }}>⏱️ {card.metadata.duration as string}</p> : null}
           </div>
 
-          {card.metadata.google_place_id && (
-            <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+          <div className="mt-3 flex gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+            {card.metadata.google_place_id && (
               <PillButton href={reviewUrl} external>
                 view on maps →
               </PillButton>
-            </div>
-          )}
+            )}
+            {card.category === 'restaurant' && (
+              <PillButton
+                href={`https://www.google.com/search?q=${encodeURIComponent(`${card.title} ${destination} menu`)}`}
+                external
+              >
+                menu →
+              </PillButton>
+            )}
+          </div>
 
           <p className="label-mono mt-3 text-center" style={{ opacity: 0.5 }}>
             tap to flip back
