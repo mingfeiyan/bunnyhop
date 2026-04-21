@@ -95,7 +95,7 @@ export type TimelineEvent = {
 export type TimelineEventRow = {
   id: string
   trip_id: string
-  type: 'flight' | 'hotel' | 'activity' | 'airbnb' | 'cruise'
+  type: 'flight' | 'hotel' | 'activity' | 'airbnb' | 'cruise' | 'restaurant'
   title: string
   start_date: string          // YYYY-MM-DD
   end_date: string | null     // YYYY-MM-DD
@@ -108,5 +108,7 @@ export type TimelineEventRow = {
   added_by: string
   family_id: string | null
   source: 'manual' | 'agent' | 'email'
+  card_id: string | null
+  status: 'planned' | 'visited' | 'skipped'
   created_at: string
 }
