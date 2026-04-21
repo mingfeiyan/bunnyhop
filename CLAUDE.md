@@ -37,9 +37,9 @@ User creates trip -> adds context (free text) -> Claude parses into structured d
 
 ### Database (Supabase)
 
-Migrations in `supabase/migrations/`. Core tables: `trips`, `trip_participants`, `trip_context`, `cards`, `swipes`. RLS policies enforce participant-level access. Migration 004 fixes RLS recursion via a `security definer` function `is_trip_member()`.
+Migrations in `supabase/migrations/`. Core tables: `trips`, `trip_participants`, `trip_context`, `cards`, `swipes`, `timeline_events`. RLS policies enforce participant-level access. Migration 004 fixes RLS recursion via a `security definer` function `is_trip_member()`. Migration 025 adds `card_id` and `status` (planned/visited/skipped) to `timeline_events` so swipe cards can be committed to the itinerary.
 
-Realtime is enabled on `swipes`, `trip_context`, and `cards`.
+Realtime is enabled on `swipes`, `trip_context`, `cards`, and `timeline_events`.
 
 ### AI Integration
 
