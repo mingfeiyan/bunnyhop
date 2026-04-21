@@ -27,9 +27,9 @@ curl https://bunnyhop-beta.vercel.app/api/trips/by-code/<CODE>/summary
 
 Returns:
 - **trip**: title, destination, dates, timezone, list of participants
-- **timeline**: all confirmed bookings (flights, hotels, airbnbs, cruises, activities) sorted by date
+- **timeline**: all confirmed bookings (flights, hotels, airbnbs, cruises, restaurants, activities) sorted by date. Each event includes its `id`, `status` (`planned` / `visited` / `skipped`), and `card_id` (the swipe card it was committed from, or `null` if unlinked).
 - **context**: notes and constraints from the group (e.g., "traveling with kids aged 6-8", "avoid water activities", "easy schedule preferred")
-- **results**: every AI-generated recommendation card with its group consensus (`everyone_loves` / `mixed` / `hard_pass`), numeric score, and vote count
+- **results**: every AI-generated recommendation card with its `id`, group consensus (`everyone_loves` / `mixed` / `hard_pass`), numeric score, and vote count. Use the `id` to commit a card to the timeline.
 - **families**: who's in which family group, including other agents
 
 **Always read the summary before writing.** Understand what's already booked, what the group voted for, and what constraints they've set.
@@ -62,7 +62,8 @@ curl -X POST https://bunnyhop-beta.vercel.app/api/trips/by-code/<CODE>/timeline-
 | `hotel` | Hotels and resorts | `start_date` (check-in), `end_date` (check-out), `details.address` |
 | `airbnb` | Airbnb / VRBO rentals | Same as hotel. Set `details.platform: "Airbnb"` |
 | `cruise` | Cruise bookings | `start_date` (embark), `end_date` (debark), `details.address` (port), `details.cruise_line` |
-| `activity` | Confirmed bookings with a date | `start_date`, `start_time`, `end_time`, `details.location` |
+| `restaurant` | Meals — reservations or spontaneous visits | `start_date`, `start_time`, `status`, optional `card_id` |
+| `activity` | Confirmed bookings with a date (non-meal) | `start_date`, `start_time`, `end_time`, `details.location` |
 
 ### Rules
 - Dates: `YYYY-MM-DD` only (`2026-06-27`, not `June 27`)
@@ -83,6 +84,69 @@ curl -X POST https://bunnyhop-beta.vercel.app/api/trips/by-code/<CODE>/context \
 ```
 
 Claude parses the text and routes it: flights/hotels/activities go to the timeline, notes/constraints go to the trip context. Prefer the structured `/timeline-events` endpoint when you have field-level data.
+
+## Committing swipe cards to the itinerary
+
+Timeline events can link back to the swipe card the group voted on. This is how an agent turns group consensus into a concrete plan.
+
+The link lives in `card_id` on a timeline event. A few flavors:
+
+- **Commit a card** — you already pulled the `id` from `/summary` `results[]`. Pass it as `card_id`.
+- **Fall back to `google_place_id`** — if you only know the Google place id, set `google_place_id` and the server will link it to the one card in this trip whose `metadata.google_place_id` matches exactly. If zero or more than one card matches, the event is stored unlinked (no guessing).
+- **Unlinked** — spontaneous visits that never went through the swipe deck.
+
+Every event also has a `status`: `planned` (default), `visited`, or `skipped`. Use `visited` to log something the group actually did, `skipped` for a plan the group dropped.
+
+### Example 1 — Commit a swipe card to the itinerary
+
+Agent already queried `/summary` and pulled the card `id` out of `results[]`:
+
+```http
+POST /api/trips/by-code/{inviteCode}/timeline-events
+Content-Type: application/json
+
+{
+  "type": "restaurant",
+  "title": "Joe's Pizza",
+  "start_date": "2026-04-23",
+  "start_time": "19:00",
+  "card_id": "<card-uuid-from-summary>",
+  "status": "planned"
+}
+```
+
+### Example 2 — Log a spontaneous restaurant visit (no swipe card)
+
+No card exists for this place — the group just walked in and ate. Record it as visited so it shows up in the recap:
+
+```http
+POST /api/trips/by-code/{inviteCode}/timeline-events
+Content-Type: application/json
+
+{
+  "type": "restaurant",
+  "title": "Noodle House on 5th",
+  "start_date": "2026-04-22",
+  "status": "visited"
+}
+```
+
+### Example 3 — Mark a planned entry as visited
+
+Agent got the event `id` from `/summary` `timeline[]` and flips the status after the meal:
+
+```http
+PATCH /api/trips/by-code/{inviteCode}/timeline-events/{eventId}
+Content-Type: application/json
+
+{
+  "status": "visited"
+}
+```
+
+PATCH accepts a narrow whitelist: `status`, `start_date`, `start_time`, `end_date`, `end_time`, `details`. Everything else (including `type`, `title`, and `card_id`) is immutable — delete and re-POST to change those.
+
+Use `"status": "skipped"` the same way when the group drops a planned entry without doing it.
 
 ## Planning workflow
 
