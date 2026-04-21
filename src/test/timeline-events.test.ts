@@ -190,6 +190,8 @@ describe('formatTimelineEventDescription', () => {
     family_id: null,
     source: 'manual',
     created_at: '2026-01-01T00:00:00Z',
+    card_id: null,
+    status: 'planned',
   }
 
   it('formats flight description with route and 12-hour times', () => {
