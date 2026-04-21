@@ -23,6 +23,7 @@ export default function SwipePage() {
   const [showAddCard, setShowAddCard] = useState(false)
   const [mode, setMode] = useState<'swipe' | 'review'>('swipe')
   const [destination, setDestination] = useState('')
+  const [plannedCardIds, setPlannedCardIds] = useState<Set<string>>(new Set())
 
   const loadCards = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -52,8 +53,21 @@ export default function SwipePage() {
       voteMap[s.card_id] = s.preference
     }
 
+    const { data: events } = await supabase
+      .from('timeline_events')
+      .select('card_id, status')
+      .eq('trip_id', tripId)
+      .not('card_id', 'is', null)
+      .neq('status', 'skipped')
+
+    const plannedIds = new Set<string>()
+    for (const e of (events ?? []) as Array<{ card_id: string | null; status: string }>) {
+      if (e.card_id) plannedIds.add(e.card_id)
+    }
+
     setAllCards((fetchedCards ?? []) as Card[])
     setVotes(voteMap)
+    setPlannedCardIds(plannedIds)
     setLoading(false)
   }, [tripId, supabase])
 
@@ -66,6 +80,31 @@ export default function SwipePage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadCards()
   }, [loadCards])
+
+  // Live-update the "planned" badge when anyone commits/unschedules a card
+  // from the timeline. Refetches via loadCards which keeps planned + cards +
+  // votes in sync; loadCards is memoized so this effect is stable.
+  useEffect(() => {
+    if (!tripId) return
+    const channel = supabase
+      .channel(`swipe-planned-${tripId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'timeline_events',
+          filter: `trip_id=eq.${tripId}`,
+        },
+        () => {
+          loadCards()
+        }
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [tripId, loadCards, supabase])
 
   async function handleSwipe(cardId: string, preference: 'want' | 'pass' | 'indifferent') {
     if (!currentUserId) return
@@ -117,7 +156,12 @@ export default function SwipePage() {
 
         <div className="px-5 pb-24">
           {effectiveMode === 'swipe' && !allSwiped && (
-            <SwipeDeck cards={unswipedCards} destination={destination} onSwipe={handleSwipe} />
+            <SwipeDeck
+              cards={unswipedCards}
+              destination={destination}
+              onSwipe={handleSwipe}
+              plannedCardIds={plannedCardIds}
+            />
           )}
 
           {effectiveMode === 'review' && currentUserId && (
