@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import ResultsCard from '@/components/ResultsCard'
+import ResultsCard, { type PlannedEntry } from '@/components/ResultsCard'
 import PageShell from '@/components/ui/PageShell'
 import PageHeader from '@/components/ui/PageHeader'
 import OverviewGrid from '@/components/ui/OverviewGrid'
@@ -53,6 +53,7 @@ export default function ResultsPage() {
   const { tripId } = useParams<{ tripId: string }>()
   const supabase = createClient()
   const [results, setResults] = useState<SwipeResult[]>([])
+  const [plannedByCard, setPlannedByCard] = useState<Map<string, PlannedEntry>>(new Map())
   const [filter, setFilter] = useState<FilterCategory>('all')
   const [userMap, setUserMap] = useState<Record<string, string>>({})
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -100,6 +101,34 @@ export default function ResultsPage() {
       }
 
       setResults(computeResults((cards ?? []) as Card[], swipes))
+
+      // Fetch timeline events linked to cards (excluding skipped) to build the
+      // planned-by-card map for Task 12's Add-to-itinerary / Planned rendering.
+      const { data: events } = await supabase
+        .from('timeline_events')
+        .select('id, card_id, start_date, start_time, status')
+        .eq('trip_id', tripId)
+        .not('card_id', 'is', null)
+        .neq('status', 'skipped')
+
+      const plannedMap = new Map<string, PlannedEntry>()
+      for (const e of (events ?? []) as Array<{
+        id: string
+        card_id: string | null
+        start_date: string
+        start_time: string | null
+        status: string
+      }>) {
+        if (e.card_id) {
+          plannedMap.set(e.card_id, {
+            event_id: e.id,
+            start_date: e.start_date,
+            start_time: e.start_time,
+            status: e.status as 'planned' | 'visited',
+          })
+        }
+      }
+      setPlannedByCard(plannedMap)
     }
 
     load()
@@ -116,6 +145,16 @@ export default function ResultsPage() {
         if (cardId && cardIdsRef.current.has(cardId)) {
           load()
         }
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'timeline_events',
+        filter: `trip_id=eq.${tripId}`,
+      }, () => {
+        // Any timeline_events change for this trip -> reload to keep
+        // plannedByCard consistent with DB state.
+        load()
       })
       .subscribe()
 
@@ -181,7 +220,7 @@ export default function ResultsPage() {
             <DaySection title="Everyone loves" tag={`${everyoneLoves.length} cards`}>
               <div className="px-5 py-4">
                 {everyoneLoves.map(r => (
-                  <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />
+                  <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} planned={plannedByCard.get(r.id)} />
                 ))}
               </div>
             </DaySection>
@@ -191,7 +230,7 @@ export default function ResultsPage() {
             <DaySection title="Mixed feelings" tag={`${mixed.length} cards`}>
               <div className="px-5 py-4">
                 {mixed.map(r => (
-                  <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />
+                  <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} planned={plannedByCard.get(r.id)} />
                 ))}
               </div>
             </DaySection>
@@ -201,7 +240,7 @@ export default function ResultsPage() {
             <DaySection title="Hard pass" tag={`${hardPass.length} cards`}>
               <div className="px-5 py-4">
                 {hardPass.map(r => (
-                  <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} />
+                  <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} planned={plannedByCard.get(r.id)} />
                 ))}
               </div>
             </DaySection>

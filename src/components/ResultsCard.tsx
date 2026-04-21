@@ -7,6 +7,13 @@ import PillButton from '@/components/ui/PillButton'
 import MonoLabel from '@/components/ui/MonoLabel'
 import type { SwipeResult, Swipe } from '@/types'
 
+export type PlannedEntry = {
+  event_id: string
+  start_date: string
+  start_time: string | null
+  status: 'planned' | 'visited'
+}
+
 const CONSENSUS_STYLES = {
   everyone_loves: { bg: 'bg-green-50', border: 'border-green-200', label: 'Everyone loves' },
   mixed: { bg: 'bg-yellow-50', border: 'border-yellow-200', label: 'Mixed feelings' },
@@ -48,9 +55,11 @@ type Props = {
   result: SwipeResult
   userMap: Record<string, string>
   currentUserId: string | null
+  planned?: PlannedEntry
 }
 
-export default function ResultsCard({ result, userMap, currentUserId }: Props) {
+export default function ResultsCard({ result, userMap, currentUserId, planned }: Props) {
+  void planned // Task 12 will consume; keeps TS/lint happy for now
   const supabase = createClient()
   const style = CONSENSUS_STYLES[result.consensus]
   const editorialStyle = CONSENSUS_EDITORIAL[result.consensus]
