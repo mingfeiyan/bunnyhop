@@ -58,6 +58,8 @@ export default function ResultsPage() {
   const [userMap, setUserMap] = useState<Record<string, string>>({})
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [destination, setDestination] = useState('')
+  const [tripDateStart, setTripDateStart] = useState<string | null>(null)
+  const [tripDateEnd, setTripDateEnd] = useState<string | null>(null)
   const cardIdsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
@@ -66,13 +68,16 @@ export default function ResultsPage() {
       const { data: { user } } = await supabase.auth.getUser()
       setCurrentUserId(user?.id ?? null)
 
-      // Fetch trip destination for the editorial header
+      // Fetch trip destination for the editorial header + date range so the
+      // commit-card modal can constrain its date picker.
       const { data: trip } = await supabase
         .from('trips')
-        .select('destination')
+        .select('destination, date_start, date_end')
         .eq('id', tripId)
         .single()
       setDestination((trip?.destination as string) ?? '')
+      setTripDateStart((trip?.date_start as string | null) ?? null)
+      setTripDateEnd((trip?.date_end as string | null) ?? null)
 
       // Fetch participant display info via existing RPC (from migration 006)
       const { data: participants } = await supabase
@@ -220,7 +225,7 @@ export default function ResultsPage() {
             <DaySection title="Everyone loves" tag={`${everyoneLoves.length} cards`}>
               <div className="px-5 py-4">
                 {everyoneLoves.map(r => (
-                  <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} planned={plannedByCard.get(r.id)} />
+                  <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} planned={plannedByCard.get(r.id)} tripDateStart={tripDateStart} tripDateEnd={tripDateEnd} />
                 ))}
               </div>
             </DaySection>
@@ -230,7 +235,7 @@ export default function ResultsPage() {
             <DaySection title="Mixed feelings" tag={`${mixed.length} cards`}>
               <div className="px-5 py-4">
                 {mixed.map(r => (
-                  <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} planned={plannedByCard.get(r.id)} />
+                  <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} planned={plannedByCard.get(r.id)} tripDateStart={tripDateStart} tripDateEnd={tripDateEnd} />
                 ))}
               </div>
             </DaySection>
@@ -240,7 +245,7 @@ export default function ResultsPage() {
             <DaySection title="Hard pass" tag={`${hardPass.length} cards`}>
               <div className="px-5 py-4">
                 {hardPass.map(r => (
-                  <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} planned={plannedByCard.get(r.id)} />
+                  <ResultsCard key={r.id} result={r} userMap={userMap} currentUserId={currentUserId} planned={plannedByCard.get(r.id)} tripDateStart={tripDateStart} tripDateEnd={tripDateEnd} />
                 ))}
               </div>
             </DaySection>
