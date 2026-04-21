@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import PillButton from '@/components/ui/PillButton'
 import MonoLabel from '@/components/ui/MonoLabel'
@@ -257,7 +256,7 @@ export default function ResultsCard({ result, userMap, currentUserId, planned, t
         <div className="pt-3 mt-3 border-t border-stroke">
           {!planned ? (
             <PillButton onClick={() => setModalOpen(true)}>
-              📌 add to itinerary
+              add to itinerary
             </PillButton>
           ) : planned.status === 'planned' ? (
             <div className="flex items-center gap-2 flex-wrap">
@@ -269,7 +268,7 @@ export default function ResultsCard({ result, userMap, currentUserId, planned, t
                   background: 'var(--stroke-soft)',
                 }}
               >
-                📍 planned {formatPlannedDate(planned.start_date, planned.start_time)}
+                planned {formatPlannedDate(planned.start_date, planned.start_time)}
               </span>
               <PillButton onClick={() => setModalOpen(true)}>edit</PillButton>
               <PillButton onClick={removePlanned}>remove</PillButton>
@@ -283,7 +282,7 @@ export default function ResultsCard({ result, userMap, currentUserId, planned, t
                 background: 'var(--stroke-soft)',
               }}
             >
-              ✅ visited {formatPlannedDate(planned.start_date, planned.start_time)}
+              visited {formatPlannedDate(planned.start_date, planned.start_time)}
             </span>
           )}
         </div>
