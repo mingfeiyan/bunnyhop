@@ -21,6 +21,9 @@ export default function SwipePage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAddCard, setShowAddCard] = useState(false)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [resetting, setResetting] = useState(false)
+  const [resetError, setResetError] = useState<string | null>(null)
   const [mode, setMode] = useState<'swipe' | 'review'>('swipe')
   const [destination, setDestination] = useState('')
   const [plannedCardIds, setPlannedCardIds] = useState<Set<string>>(new Set())
@@ -114,6 +117,32 @@ export default function SwipePage() {
       .upsert({ card_id: cardId, user_id: currentUserId, preference })
   }
 
+  async function resetMyVotes() {
+    if (!currentUserId) return
+    setResetting(true)
+    setResetError(null)
+    const cardIds = allCards.map(c => c.id)
+    if (cardIds.length === 0) {
+      setShowResetConfirm(false)
+      setResetting(false)
+      return
+    }
+    const { error } = await supabase
+      .from('swipes')
+      .delete()
+      .eq('user_id', currentUserId)
+      .in('card_id', cardIds)
+    if (error) {
+      setResetError(error.message)
+      setResetting(false)
+      return
+    }
+    setVotes({})
+    setMode('swipe')
+    setShowResetConfirm(false)
+    setResetting(false)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--cream)' }}>
@@ -138,7 +167,7 @@ export default function SwipePage() {
 
         {/* Mode toggle — only when there's at least one vote AND cards remain */}
         {hasAnyVote && !allSwiped && (
-          <div className="flex gap-2 px-5 mb-4">
+          <div className="flex gap-2 px-5 mb-4 flex-wrap">
             <PillButton
               variant={effectiveMode === 'swipe' ? 'active' : 'default'}
               onClick={() => setMode('swipe')}
@@ -150,6 +179,16 @@ export default function SwipePage() {
               onClick={() => setMode('review')}
             >
               review · {votedCount}
+            </PillButton>
+            <PillButton onClick={() => setShowResetConfirm(true)}>
+              reset my votes
+            </PillButton>
+          </div>
+        )}
+        {hasAnyVote && allSwiped && (
+          <div className="flex gap-2 px-5 mb-4">
+            <PillButton onClick={() => setShowResetConfirm(true)}>
+              reset my votes
             </PillButton>
           </div>
         )}
@@ -234,6 +273,55 @@ export default function SwipePage() {
           onClose={() => setShowAddCard(false)}
           onAdded={() => { loadCards() }}
         />
+      )}
+
+      {showResetConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={() => !resetting && setShowResetConfirm(false)}
+        >
+          <div
+            className="bg-white border border-stroke p-6 max-w-md w-[90%]"
+            style={{ background: 'var(--cream)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MonoLabel className="block mb-2">reset votes</MonoLabel>
+            <p
+              style={{
+                fontFamily: 'var(--font-serif)',
+                fontSize: 18,
+                margin: 0,
+                lineHeight: 1.3,
+              }}
+            >
+              Clear all {votedCount} of your votes on this trip and swipe from scratch?
+            </p>
+            <p className="detail-mono mt-2" style={{ opacity: 0.7 }}>
+              Only your votes are cleared. Other members are unaffected.
+            </p>
+            {resetError && (
+              <p className="detail-mono mt-3" style={{ color: 'var(--consensus-pass)' }}>
+                {resetError}
+              </p>
+            )}
+            <div className="flex gap-2 mt-5">
+              <PillButton
+                onClick={() => setShowResetConfirm(false)}
+                disabled={resetting}
+              >
+                cancel
+              </PillButton>
+              <PillButton
+                variant="active"
+                onClick={resetMyVotes}
+                disabled={resetting}
+              >
+                {resetting ? 'resetting…' : 'reset'}
+              </PillButton>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )
