@@ -67,7 +67,7 @@ export async function GET(
       .eq('trip_id', trip.id),
     supabase
       .from('timeline_events')
-      .select('type, title, start_date, end_date, start_time, end_time, origin, destination, reference, details, source')
+      .select('id, card_id, status, type, title, start_date, end_date, start_time, end_time, origin, destination, reference, details, source')
       .eq('trip_id', trip.id)
       .order('start_date', { ascending: true }),
     supabase
@@ -117,6 +117,7 @@ export async function GET(
     const consensus = allWant ? 'everyone_loves' : hasPasses ? 'hard_pass' : 'mixed'
 
     return {
+      id: card.id,
       title: card.title,
       tagline: card.tagline,
       category: card.category,

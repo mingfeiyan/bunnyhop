@@ -30,6 +30,13 @@ function summarizeTimelineEvent(ev: TimelineEventRow): string {
       const extras = [location, organizer].filter(Boolean).join(', ')
       return `[activity] ${ev.start_date}${time} — ${ev.title}${extras ? ` (${extras})` : ''}`
     }
+    case 'restaurant': {
+      const time = ev.start_time ? ` at ${formatTime12h(ev.start_time)}` : ''
+      const address = (ev.details?.address as string) || ''
+      const organizer = (ev.details?.organizer as string) || ''
+      const extras = [address, organizer].filter(Boolean).join(', ')
+      return `[restaurant] ${ev.start_date}${time} — ${ev.title}${extras ? ` (${extras})` : ''}`
+    }
     default: {
       const _exhaustive: never = ev.type
       return `[unknown:${_exhaustive}] ${ev.start_date} — ${ev.title}`

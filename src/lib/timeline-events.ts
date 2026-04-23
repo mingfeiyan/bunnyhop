@@ -71,6 +71,8 @@ export function parsedEntryToTimelineEvent(entry: ParsedEntry): TimelineEventIns
         reference: flightNumber || null,
         details,
         source: 'manual',
+        card_id: null,
+        status: 'planned' as const,
       }
     }
 
@@ -100,6 +102,8 @@ export function parsedEntryToTimelineEvent(entry: ParsedEntry): TimelineEventIns
         reference: null,
         details,
         source: 'manual',
+        card_id: null,
+        status: 'planned' as const,
       }
     }
 
@@ -126,6 +130,8 @@ export function parsedEntryToTimelineEvent(entry: ParsedEntry): TimelineEventIns
         reference,
         details,
         source: 'manual',
+        card_id: null,
+        status: 'planned' as const,
       }
     }
 
@@ -185,6 +191,16 @@ export function formatTimelineEventDescription(event: TimelineEventRow): string 
       const timeStr = timeParts.join(' – ')
       const location = (event.details?.location as string) || ''
       const parts = [timeStr, location, event.reference].filter(Boolean)
+      return parts.join(' — ') || event.title
+    }
+
+    case 'restaurant': {
+      const timeParts: string[] = []
+      if (event.start_time) timeParts.push(formatTime12h(event.start_time))
+      if (event.end_time) timeParts.push(formatTime12h(event.end_time))
+      const timeStr = timeParts.join(' – ')
+      const address = (event.details?.address as string) || ''
+      const parts = [timeStr, address, event.reference].filter(Boolean)
       return parts.join(' — ') || event.title
     }
 

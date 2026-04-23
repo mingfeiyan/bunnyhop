@@ -8,7 +8,7 @@ import DaySection from '@/components/ui/DaySection'
 import MonoLabel from '@/components/ui/MonoLabel'
 import type { TimelineEventRow } from '@/types'
 
-type Phase = 'flight' | 'check_in' | 'check_out' | 'activity'
+type Phase = 'flight' | 'check_in' | 'check_out' | 'activity' | 'restaurant'
 
 type Position = {
   event: TimelineEventRow
@@ -17,6 +17,7 @@ type Position = {
   familyName: string | null
   familyColor: string | null
   canDelete: boolean
+  linkedCard: { title: string; tagline: string | null; image_url: string | null } | null
 }
 
 type DateGroup = {
@@ -128,6 +129,7 @@ export default function TimelineFilterableContent({
                     familyName={pos.familyName}
                     familyColor={pos.familyColor}
                     canDelete={pos.canDelete}
+                    linkedCard={pos.linkedCard}
                   />
                 ))}
               </DaySection>

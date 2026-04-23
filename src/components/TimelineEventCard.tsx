@@ -1,13 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getFamilyColor } from '@/lib/colors'
 import { formatTime12h } from '@/lib/timeline-events'
 import EventCard from '@/components/ui/EventCard'
+import PillButton from '@/components/ui/PillButton'
 import type { TimelineEventRow } from '@/types'
 
-type Phase = 'flight' | 'check_in' | 'check_out' | 'activity'
+type Phase = 'flight' | 'check_in' | 'check_out' | 'activity' | 'restaurant'
 
 type Props = {
   event: TimelineEventRow
@@ -15,6 +17,7 @@ type Props = {
   familyName: string | null
   familyColor: string | null
   canDelete: boolean
+  linkedCard: { title: string; tagline: string | null; image_url: string | null } | null
 }
 
 // Pick the kicker label, action verb, and emoji icon based on the parent
@@ -44,6 +47,12 @@ function describePhase(
         icon: '🎟️',
         kicker: withFamily('activity', familyName),
         action: familyName ? `${familyName} activity` : 'Activity',
+      }
+    case 'restaurant':
+      return {
+        icon: '🍽️',
+        kicker: withFamily('restaurant', familyName),
+        action: familyName ? `${familyName} dining` : 'Dining',
       }
     case 'check_in':
       if (event.type === 'cruise') {
@@ -126,6 +135,16 @@ function buildDetails(event: TimelineEventRow, phase: Phase): string | null {
     return parts.length > 0 ? parts.join(' · ') : null
   }
 
+  if (phase === 'restaurant') {
+    const timeParts: string[] = []
+    if (event.start_time) timeParts.push(formatTime12h(event.start_time))
+    if (event.end_time) timeParts.push(formatTime12h(event.end_time))
+    const timeStr = timeParts.join(' – ')
+    const address = (event.details?.address as string) || ''
+    const parts = [timeStr, address, event.reference].filter(Boolean)
+    return parts.length > 0 ? parts.join(' · ') : null
+  }
+
   // activity
   const timeParts: string[] = []
   if (event.start_time) timeParts.push(formatTime12h(event.start_time))
@@ -136,8 +155,9 @@ function buildDetails(event: TimelineEventRow, phase: Phase): string | null {
   return parts.length > 0 ? parts.join(' · ') : null
 }
 
-export default function TimelineEventCard({ event, phase, familyName, familyColor, canDelete }: Props) {
+export default function TimelineEventCard({ event, phase, familyName, familyColor, canDelete, linkedCard }: Props) {
   const supabase = createClient()
+  const { tripId } = useParams<{ tripId: string }>()
   const [deleted, setDeleted] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -155,14 +175,25 @@ export default function TimelineEventCard({ event, phase, familyName, familyColo
     setDeleted(true)
   }
 
+  async function changeStatus(next: 'planned' | 'visited' | 'skipped') {
+    setError(null)
+    const res = await fetch(`/api/trips/${tripId}/timeline-events/${event.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: next }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      setError(body?.error || 'failed to update status')
+    }
+  }
+
   if (deleted) return null
 
   const { icon, kicker, action } = describePhase(event, phase, familyName)
 
-  // Editorial: time string for the 60px column. Stays don't show a time;
-  // flights and activities show their start_time.
   const editorialTime =
-    phase === 'flight' || phase === 'activity'
+    phase === 'flight' || phase === 'activity' || phase === 'restaurant'
       ? event.start_time
         ? formatTime12h(event.start_time)
         : ''
@@ -193,6 +224,45 @@ export default function TimelineEventCard({ event, phase, familyName, familyColo
           ) : null
         }
       />
+      {linkedCard && (linkedCard.image_url || linkedCard.tagline) && (
+        <div
+          className="flex items-center gap-3 px-5 py-2 border-t border-stroke"
+          style={{ background: 'var(--stroke-soft)' }}
+        >
+          {linkedCard.image_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={linkedCard.image_url}
+              alt=""
+              style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 2 }}
+            />
+          )}
+          {linkedCard.tagline && (
+            <p style={{ fontFamily: 'var(--font-serif)', fontSize: 13, fontStyle: 'italic', margin: 0, opacity: 0.75 }}>
+              {linkedCard.tagline}
+            </p>
+          )}
+        </div>
+      )}
+      {event.status === 'visited' && (
+        <div className="px-5 pt-1 detail-mono" style={{ color: 'var(--consensus-want)' }}>visited</div>
+      )}
+      {event.status === 'skipped' && (
+        <div className="px-5 pt-1 detail-mono" style={{ opacity: 0.5, textDecoration: 'line-through' }}>skipped</div>
+      )}
+      {canDelete && (
+        <div className="flex gap-2 px-5 py-2 flex-wrap">
+          {event.status !== 'visited' && (
+            <PillButton onClick={() => changeStatus('visited')}>mark visited</PillButton>
+          )}
+          {event.status !== 'skipped' && (
+            <PillButton onClick={() => changeStatus('skipped')}>mark skipped</PillButton>
+          )}
+          {event.status !== 'planned' && (
+            <PillButton onClick={() => changeStatus('planned')}>reset</PillButton>
+          )}
+        </div>
+      )}
       {error && (
         <div className="px-5 detail-mono" style={{ color: 'var(--consensus-pass)' }}>
           {error}

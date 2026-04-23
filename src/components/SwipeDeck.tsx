@@ -10,6 +10,10 @@ type Props = {
   cards: Card[]
   destination: string
   onSwipe: (cardId: string, preference: SwipeDirection) => void
+  // Card IDs that have been committed to the trip timeline (via a non-skipped
+  // timeline_events row). Used to render a small "planned" pill on the front
+  // face of the visible card so voters know someone has already scheduled it.
+  plannedCardIds?: Set<string>
 }
 
 // SwipeDeck is purely controlled by its `cards` prop. It always shows
@@ -17,7 +21,7 @@ type Props = {
 // card from the array (via its `votes` filter) and `cards[0]` automatically
 // becomes the next card. Keeping a `currentIndex` here would double-advance
 // the deck (parent shrinks the array AND child advances the index → skip).
-export default function SwipeDeck({ cards, destination, onSwipe }: Props) {
+export default function SwipeDeck({ cards, destination, onSwipe, plannedCardIds }: Props) {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const startPos = useRef({ x: 0, y: 0 })
@@ -129,6 +133,30 @@ export default function SwipeDeck({ cards, destination, onSwipe }: Props) {
           </div>
 
           <FlipCard key={currentCard.id} card={currentCard} destination={destination} />
+
+          {/* "planned" pill — shown when a non-skipped timeline_events row
+              links to this card. Sits above the front face so it's visible
+              while swiping; pointer-events:none keeps the drag surface intact.
+              Placed under the top strip ("tap for details") to avoid collision
+              with the category kicker and tap hint. */}
+          {plannedCardIds?.has(currentCard.id) && (
+            <div
+              className="absolute z-20 pointer-events-none"
+              style={{ top: '44px', right: '16px' }}
+            >
+              <span
+                className="label-mono"
+                style={{
+                  color: 'var(--cream)',
+                  background: 'rgba(51,61,41,0.5)',
+                  padding: '4px 10px',
+                  border: '1px solid rgba(240,240,236,0.4)',
+                }}
+              >
+                planned
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

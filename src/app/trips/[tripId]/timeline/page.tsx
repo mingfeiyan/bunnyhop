@@ -68,14 +68,40 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
 
     const allEvents = (events ?? []) as TimelineEventRow[]
 
+    // Batch-fetch any cards linked via event.card_id so the timeline card
+    // can render a thumbnail + tagline inline.
+    const cardIds = allEvents
+      .map(e => e.card_id)
+      .filter((x): x is string => !!x)
+
+    const { data: linkedCards } =
+      cardIds.length > 0
+        ? await supabase
+            .from('cards')
+            .select('id, title, tagline, image_url')
+            .in('id', cardIds)
+        : {
+            data: [] as Array<{
+              id: string
+              title: string
+              tagline: string | null
+              image_url: string | null
+            }>,
+          }
+
+    const cardById = new Map(
+      (linkedCards ?? []).map(c => [c.id, c])
+    )
+
     // Expand each event into render positions:
-    //   flight  -> 1 position at start_date (phase: 'flight')
-    //   hotel    -> 2 positions: check_in at start_date, check_out at end_date
-    //   activity -> 1 position at start_date
+    //   flight     -> 1 position at start_date (phase: 'flight')
+    //   hotel      -> 2 positions: check_in at start_date, check_out at end_date
+    //   activity   -> 1 position at start_date
+    //   restaurant -> 1 position at start_date (phase: 'restaurant')
     type RenderPosition = {
       event: TimelineEventRow
       date: string
-      phase: 'flight' | 'check_in' | 'check_out' | 'activity'
+      phase: 'flight' | 'check_in' | 'check_out' | 'activity' | 'restaurant'
     }
     const positions: RenderPosition[] = []
     for (const ev of allEvents) {
@@ -85,6 +111,9 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
           break
         case 'activity':
           positions.push({ event: ev, date: ev.start_date, phase: 'activity' })
+          break
+        case 'restaurant':
+          positions.push({ event: ev, date: ev.start_date, phase: 'restaurant' })
           break
         case 'hotel':
         case 'airbnb':
@@ -114,6 +143,7 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
       flight: 1,
       check_in: 2,
       activity: 3,
+      restaurant: 4,
     }
     positions.sort((a, b) => {
       const dateCmp = a.date.localeCompare(b.date)
@@ -152,18 +182,23 @@ export default async function TimelinePage({ params }: { params: Promise<{ tripI
     type AnnotatedPosition = {
       event: TimelineEventRow
       date: string
-      phase: 'flight' | 'check_in' | 'check_out' | 'activity'
+      phase: 'flight' | 'check_in' | 'check_out' | 'activity' | 'restaurant'
       familyName: string | null
       familyColor: string | null
       canDelete: boolean
+      linkedCard: { title: string; tagline: string | null; image_url: string | null } | null
     }
     const annotated: AnnotatedPosition[] = positions.map(pos => {
       const family = familyForEvent(pos.event)
+      const card = pos.event.card_id ? cardById.get(pos.event.card_id) : undefined
       return {
         ...pos,
         familyName: family?.name ?? null,
         familyColor: family?.color ?? null,
         canDelete: isOrganizer || (currentUserId !== null && pos.event.added_by === currentUserId),
+        linkedCard: card
+          ? { title: card.title, tagline: card.tagline, image_url: card.image_url }
+          : null,
       }
     })
 

@@ -1,11 +1,28 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import PillButton from '@/components/ui/PillButton'
 import MonoLabel from '@/components/ui/MonoLabel'
+import CommitCardModal from '@/components/CommitCardModal'
 import type { SwipeResult, Swipe } from '@/types'
+
+export type PlannedEntry = {
+  event_id: string
+  start_date: string
+  start_time: string | null
+  status: 'planned' | 'visited'
+}
+
+// YYYY-MM-DD -> "Apr 20" (· HH:MM when time provided). Uses the "T00:00:00"
+// trick to avoid UTC interpretation flipping the day in west-of-UTC zones.
+function formatPlannedDate(date: string, time: string | null): string {
+  const formatted = new Date(date + 'T00:00:00').toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  })
+  return time ? `${formatted} · ${time}` : formatted
+}
 
 const CONSENSUS_STYLES = {
   everyone_loves: { bg: 'bg-green-50', border: 'border-green-200', label: 'Everyone loves' },
@@ -48,9 +65,12 @@ type Props = {
   result: SwipeResult
   userMap: Record<string, string>
   currentUserId: string | null
+  planned?: PlannedEntry
+  tripDateStart: string | null
+  tripDateEnd: string | null
 }
 
-export default function ResultsCard({ result, userMap, currentUserId }: Props) {
+export default function ResultsCard({ result, userMap, currentUserId, planned, tripDateStart, tripDateEnd }: Props) {
   const supabase = createClient()
   const style = CONSENSUS_STYLES[result.consensus]
   const editorialStyle = CONSENSUS_EDITORIAL[result.consensus]
@@ -59,6 +79,23 @@ export default function ResultsCard({ result, userMap, currentUserId }: Props) {
   const initialMyVote = result.swipes.find(s => s.user_id === currentUserId)?.preference ?? null
   const [myVote, setMyVote] = useState<Swipe['preference'] | null>(initialMyVote)
   const [error, setError] = useState<string | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
+
+  async function removePlanned() {
+    if (!planned) return
+    setError(null)
+    const res = await fetch(
+      `/api/trips/${result.trip_id}/timeline-events/${planned.event_id}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'skipped' }),
+      },
+    )
+    if (!res.ok) {
+      setError('failed to remove from itinerary')
+    }
+  }
 
   async function changeVote(preference: Swipe['preference']) {
     if (!currentUserId) return
@@ -214,6 +251,43 @@ export default function ResultsCard({ result, userMap, currentUserId }: Props) {
         </div>
       )}
 
+      {/* Itinerary state: add / edit+remove / visited */}
+      {currentUserId && (
+        <div className="pt-3 mt-3 border-t border-stroke">
+          {!planned ? (
+            <PillButton onClick={() => setModalOpen(true)}>
+              add to itinerary
+            </PillButton>
+          ) : planned.status === 'planned' ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className="label-mono"
+                style={{
+                  padding: '4px 8px',
+                  border: '1px solid var(--stroke)',
+                  background: 'var(--stroke-soft)',
+                }}
+              >
+                planned {formatPlannedDate(planned.start_date, planned.start_time)}
+              </span>
+              <PillButton onClick={() => setModalOpen(true)}>edit</PillButton>
+              <PillButton onClick={removePlanned}>remove</PillButton>
+            </div>
+          ) : (
+            <span
+              className="label-mono"
+              style={{
+                padding: '4px 8px',
+                border: '1px solid var(--stroke)',
+                background: 'var(--stroke-soft)',
+              }}
+            >
+              visited {formatPlannedDate(planned.start_date, planned.start_time)}
+            </span>
+          )}
+        </div>
+      )}
+
       {error && (
         <p
           className="detail-mono mt-2"
@@ -221,6 +295,20 @@ export default function ResultsCard({ result, userMap, currentUserId }: Props) {
         >
           {error}
         </p>
+      )}
+
+      {modalOpen && (
+        <CommitCardModal
+          tripId={result.trip_id}
+          cardId={result.id}
+          cardTitle={result.title}
+          cardCategory={result.category}
+          tripDateStart={tripDateStart}
+          tripDateEnd={tripDateEnd}
+          existing={planned}
+          onClose={() => setModalOpen(false)}
+          onSuccess={() => setModalOpen(false)}
+        />
       )}
     </article>
   )
