@@ -1,12 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getFamilyColor } from '@/lib/colors'
 import { formatTime12h } from '@/lib/timeline-events'
 import EventCard from '@/components/ui/EventCard'
-import PillButton from '@/components/ui/PillButton'
 import type { TimelineEventRow } from '@/types'
 
 type Phase = 'flight' | 'check_in' | 'check_out' | 'activity' | 'restaurant'
@@ -157,7 +155,6 @@ function buildDetails(event: TimelineEventRow, phase: Phase): string | null {
 
 export default function TimelineEventCard({ event, phase, familyName, familyColor, canDelete, linkedCard }: Props) {
   const supabase = createClient()
-  const { tripId } = useParams<{ tripId: string }>()
   const [deleted, setDeleted] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -173,19 +170,6 @@ export default function TimelineEventCard({ event, phase, familyName, familyColo
       return
     }
     setDeleted(true)
-  }
-
-  async function changeStatus(next: 'planned' | 'visited' | 'skipped') {
-    setError(null)
-    const res = await fetch(`/api/trips/${tripId}/timeline-events/${event.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: next }),
-    })
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
-      setError(body?.error || 'failed to update status')
-    }
   }
 
   if (deleted) return null
@@ -249,19 +233,6 @@ export default function TimelineEventCard({ event, phase, familyName, familyColo
       )}
       {event.status === 'skipped' && (
         <div className="px-5 pt-1 detail-mono" style={{ opacity: 0.5, textDecoration: 'line-through' }}>skipped</div>
-      )}
-      {canDelete && (
-        <div className="flex gap-2 px-5 py-2 flex-wrap">
-          {event.status !== 'visited' && (
-            <PillButton onClick={() => changeStatus('visited')}>mark visited</PillButton>
-          )}
-          {event.status !== 'skipped' && (
-            <PillButton onClick={() => changeStatus('skipped')}>mark skipped</PillButton>
-          )}
-          {event.status !== 'planned' && (
-            <PillButton onClick={() => changeStatus('planned')}>reset</PillButton>
-          )}
-        </div>
       )}
       {error && (
         <div className="px-5 detail-mono" style={{ color: 'var(--consensus-pass)' }}>

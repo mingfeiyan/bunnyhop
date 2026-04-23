@@ -81,7 +81,7 @@ export default function ResultsCard({ result, userMap, currentUserId, planned, t
   const [error, setError] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
 
-  async function removePlanned() {
+  async function patchStatus(next: 'planned' | 'visited' | 'skipped', failMsg: string) {
     if (!planned) return
     setError(null)
     const res = await fetch(
@@ -89,13 +89,23 @@ export default function ResultsCard({ result, userMap, currentUserId, planned, t
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'skipped' }),
+        body: JSON.stringify({ status: next }),
       },
     )
     if (!res.ok) {
-      setError('failed to remove from itinerary')
+      setError(failMsg)
     }
   }
+
+  const removePlanned = () => patchStatus('skipped', 'failed to remove from itinerary')
+  const markVisited = () => patchStatus('visited', 'failed to mark visited')
+  const markPlanned = () => patchStatus('planned', 'failed to undo')
+
+  // "mark visited" only makes sense once the trip is actually happening — before
+  // that, the card is still just an intent. String-compare on YYYY-MM-DD works
+  // for our purposes (the slack of a UTC-vs-local-midnight is acceptable here).
+  const today = new Date().toISOString().slice(0, 10)
+  const tripStarted = Boolean(tripDateStart && today >= tripDateStart)
 
   async function changeVote(preference: Swipe['preference']) {
     if (!currentUserId) return
@@ -272,18 +282,25 @@ export default function ResultsCard({ result, userMap, currentUserId, planned, t
               </span>
               <PillButton onClick={() => setModalOpen(true)}>edit</PillButton>
               <PillButton onClick={removePlanned}>remove</PillButton>
+              {tripStarted && (
+                <PillButton onClick={markVisited}>mark visited</PillButton>
+              )}
             </div>
           ) : (
-            <span
-              className="label-mono"
-              style={{
-                padding: '4px 8px',
-                border: '1px solid var(--stroke)',
-                background: 'var(--stroke-soft)',
-              }}
-            >
-              visited {formatPlannedDate(planned.start_date, planned.start_time)}
-            </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className="label-mono"
+                style={{
+                  padding: '4px 8px',
+                  border: '1px solid var(--stroke)',
+                  background: 'var(--stroke-soft)',
+                  color: 'var(--consensus-want)',
+                }}
+              >
+                visited {formatPlannedDate(planned.start_date, planned.start_time)}
+              </span>
+              <PillButton onClick={markPlanned}>undo</PillButton>
+            </div>
           )}
         </div>
       )}
